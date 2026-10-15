@@ -18,6 +18,12 @@ data/
 .env
 .aws/
 
+# Terraform: estado y caché locales (pueden exponer detalles de infra; no son código fuente)
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
 # sistema
 .DS_Store
 Thumbs.db

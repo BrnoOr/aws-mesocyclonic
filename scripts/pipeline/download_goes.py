@@ -154,7 +154,7 @@ def read(path: str, v: dict, bands: list[int]) -> dict:
     return out
 
 
-def save(parts: list[dict], v: dict, out_file: Path, reg: common.Region) -> None:
+def save(parts: list[dict], v: dict, out_file: common.Store, reg: common.Region) -> None:
     """Escribe en ``out_file`` las imágenes ``parts`` de una hora como NetCDF comprimido."""
     parts = sorted(parts, key=lambda p: p["time"])
     data, encoding = {}, {}
@@ -207,17 +207,18 @@ def main() -> None:
         "--processes", type=int, default=4, help="archivos leídos en paralelo (por defecto 4)"
     )
     a = p.parse_args()
+    common.set_data_root(a)
     reg = common.region_of(a)
 
     with common.pool(a.processes) as ex:
         for day in common.days(a):
-            dest = common.folder(reg.name, "goes") / f"{day:%Y%m%d}"
-            dest.mkdir(exist_ok=True)
+            dest = common.folder(reg.name, "goes").child(f"{day:%Y%m%d}")
+            dest.mkdir()
             by_hour = files(day, range(a.hours[0], a.hours[1] + 1))
             pending = {
                 h: r
                 for h, r in by_hour.items()
-                if r and (a.force or not (dest / f"goes_{day:%Y%m%d}{h:02d}.nc").exists())
+                if r and (a.force or not dest.child(f"goes_{day:%Y%m%d}{h:02d}.nc").exists())
             }
             if not pending:
                 print(f"{day}: nada que descargar", flush=True)
@@ -233,7 +234,7 @@ def main() -> None:
             }
             for h, fs_ in fut.items():
                 t0 = time.time()
-                out_file = dest / f"goes_{day:%Y%m%d}{h:02d}.nc"
+                out_file = dest.child(f"goes_{day:%Y%m%d}{h:02d}.nc")
                 try:
                     parts = [f.result() for f in fs_]
                 except (

@@ -17,34 +17,39 @@ import xarray as xr
 from shapely.geometry import box
 
 import common
+from store import Store
 
 
 @dataclass(frozen=True)
 class Day:
-    """Archivos disponibles de un día en una región: ERA5, índices y las horas GOES reproyectadas."""
+    """Archivos disponibles de un día en una región: ERA5, índices y las horas GOES reproyectadas.
+
+    Cada ruta es un ``store.Store``, así que el visor lee igual desde disco local o desde S3 según la
+    raíz de datos (``MESO_DATA_ROOT``).
+    """
 
     date: dt.date
-    pl: Path | None
-    sfc: Path | None
-    idx: Path | None
-    goes: tuple[Path, ...]
+    pl: Store | None
+    sfc: Store | None
+    idx: Store | None
+    goes: tuple[Store, ...]
 
 
 def regions() -> list[str]:
-    """Regiones con recortes en ``data/crops/``."""
+    """Regiones con recortes en la raíz de datos (``data/crops/`` local o un bucket de S3)."""
     return sorted(p.name for p in common.CROPS.glob("*") if p.is_dir())
 
 
-def _date(p: Path) -> dt.date:
+def _date(p: Store) -> dt.date:
     """Fecha ``AAAAMMDD`` que aparece en el nombre de ``p``."""
     return dt.datetime.strptime(re.findall(r"\d{8}", p.name)[-1], "%Y%m%d").date()
 
 
 def days(name: str) -> dict[dt.date, Day]:
     """Todos los días con algún dato en la región ``name``, ordenados por fecha."""
-    base = common.CROPS / name
+    base = common.CROPS.child(name)
 
-    def by_date(pattern: str) -> dict[dt.date, Path]:
+    def by_date(pattern: str) -> dict[dt.date, Store]:
         """Archivos que calzan con ``pattern`` (glob relativo a la región), indexados por fecha."""
         return {_date(p): p for p in base.glob(pattern)}
 
@@ -57,28 +62,29 @@ def days(name: str) -> dict[dt.date, Day]:
             pl.get(f),
             sfc.get(f),
             idx.get(f),
-            tuple(sorted(goes[f].glob("goes_*.nc"))) if f in goes else (),
+            tuple(goes[f].glob("goes_*.nc")) if f in goes else (),
         )  # fmt: skip
         for f in dates
     }
 
 
 @st.cache_resource
-def _open_nc(path: Path, version: float) -> xr.Dataset:
+def _open_nc(path: str, version: float) -> xr.Dataset:
     """Abre el NetCDF ``path`` sin cargarlo; ``version`` (mtime) solo separa entradas de caché."""
-    return xr.open_dataset(path, engine="h5netcdf")
+    return Store.at(path).open_dataset()
 
 
-def open_nc(path: Path) -> xr.Dataset:
+def open_nc(path: Store) -> xr.Dataset:
     """Abre (una vez por versión del archivo) el NetCDF ``path``, sin cargarlo a memoria.
 
     La fecha de modificación entra en la clave de caché: si una descarga reemplaza el archivo,
-    se abre el nuevo en vez de seguir sirviendo el viejo.
+    se abre el nuevo en vez de seguir sirviendo el viejo. ``path.root`` (texto) es la clave, porque
+    los ``Store`` no son hasheables de forma estable para la caché de Streamlit.
     """
-    return _open_nc(path, path.stat().st_mtime)
+    return _open_nc(path.root, path.mtime())
 
 
-def images(d: Day) -> list[tuple[np.datetime64, Path]]:
+def images(d: Day) -> list[tuple[np.datetime64, Store]]:
     """Cada imagen GOES del día ``d``: su hora de inicio y el archivo que la contiene."""
     return [(t, r) for r in d.goes for t in open_nc(r)["time"].values]
 
@@ -100,21 +106,21 @@ def times(d: Day) -> list[np.datetime64]:
     return [] if ref is None else list(ref["time"].values)
 
 
-COAST = common.DATA / "coast.zip"
-CATALOG = common.DATA / "tornados_chile.xlsx"
+COAST = common.DATA.child("coast.zip")
+CATALOG = common.DATA.child("tornados_chile.xlsx")
 
 
-def _version(path: Path) -> float:
-    """Fecha de modificación de ``path`` (0 si no existe), para separar entradas de caché.
+def _version(store: Store) -> float:
+    """Fecha de modificación de ``store`` (0 si no existe), para separar entradas de caché.
 
     Así, un archivo descargado con el visor abierto se lee al recargar la página, en vez de seguir
     sirviendo el resultado vacío que se guardó cuando faltaba.
     """
-    return path.stat().st_mtime if path.exists() else 0.0
+    return store.mtime()
 
 
 def coast(reg: common.Region) -> tuple[np.ndarray, np.ndarray]:
-    """Líneas de costa de ``data/coast.zip`` dentro de ``reg``, como arreglos x/y separados por NaN."""
+    """Líneas de costa de ``coast.zip`` dentro de ``reg``, como arreglos x/y separados por NaN."""
     return _coast(reg, _version(COAST))
 
 
@@ -125,10 +131,10 @@ def _coast(reg: common.Region, version: float) -> tuple[np.ndarray, np.ndarray]:
     Simplificada a 0,005° (~500 m, menos que un píxel GOES) y en ``float32``: plotly la recibe como
     arreglo binario y no como lista JSON, y cada panel la repite.
     """
-    path = COAST
-    if not path.exists():
+    if not COAST.exists():
         return np.array([], np.float32), np.array([], np.float32)
-    g = gpd.read_file(f"zip://{path}").clip(box(reg.west, reg.south, reg.east, reg.north))
+    with COAST.local_copy() as path:
+        g = gpd.read_file(f"zip://{path}").clip(box(reg.west, reg.south, reg.east, reg.north))
     xs: list[float] = []
     ys: list[float] = []
     for geom in g.geometry.simplify(0.005):
@@ -167,10 +173,10 @@ def catalog() -> pd.DataFrame:
 @st.cache_data
 def _catalog(version: float) -> pd.DataFrame:
     """Lee el catálogo; ``version`` (mtime) solo separa entradas de caché."""
-    path = CATALOG
-    if not path.exists():
+    if not CATALOG.exists():
         return pd.DataFrame()
-    d = pd.read_excel(path, sheet_name="Final_Table")
+    with CATALOG.fs.open(CATALOG.root, "rb") as f:
+        d = pd.read_excel(f, sheet_name="Final_Table")
     d["date"] = pd.to_datetime(d["Date (Gregorian Calendar)"], errors="coerce").dt.date
     d["lat"] = d["Latitude"].map(coordinate)
     d["lon"] = d["Longitude"].map(coordinate)
@@ -219,7 +225,7 @@ def to_timestamp(x: xr.DataArray) -> pd.Timestamp:
     return pd.Timestamp(str(x.values))
 
 
-def image_at(d: Day, t: np.datetime64 | pd.Timestamp) -> tuple[Path, np.datetime64] | None:
+def image_at(d: Day, t: np.datetime64 | pd.Timestamp) -> tuple[Store, np.datetime64] | None:
     """El archivo GOES y la hora de la imagen más cercana a ``t`` (``None`` si no hay GOES)."""
     imgs = images(d)
     if not imgs:
@@ -228,7 +234,7 @@ def image_at(d: Day, t: np.datetime64 | pd.Timestamp) -> tuple[Path, np.datetime
     return imgs[k][1], imgs[k][0]
 
 
-def previous(d: Day, t: np.datetime64) -> tuple[Path, np.datetime64] | None:
+def previous(d: Day, t: np.datetime64) -> tuple[Store, np.datetime64] | None:
     """La imagen GOES inmediatamente anterior a ``t`` (para la tendencia de 10 minutos)."""
     earlier = [(r, ti) for ti, r in images(d) if ti < t]
     return earlier[-1] if earlier else None

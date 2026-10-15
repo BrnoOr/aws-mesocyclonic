@@ -162,8 +162,13 @@ def day_hours(path: str, day: dt.date) -> tuple[int, int]:
     return int(k[0]), int(k[-1]) + 1
 
 
-def save(res: dict[str, dict], out_file: Path, has_level: bool, reg: common.Region) -> None:
-    """Escribe en ``out_file`` un NetCDF comprimido con las variables leídas en ``res``."""
+# Los ``.parts/`` (reanudación por variable) viven siempre en disco local, aunque el destino final
+# sea S3: son temporales y se consultan muchas veces. Solo el archivo diario ya unido se sube.
+PARTS_DIR = common.ROOT / "data" / ".parts"
+
+
+def build(res: dict[str, dict], has_level: bool, reg: common.Region) -> xr.Dataset:
+    """Arma el ``Dataset`` comprimible con las variables leídas en ``res``."""
     r0 = next(iter(res.values()))
     dims = (
         ("time", "level", "latitude", "longitude")
@@ -173,7 +178,7 @@ def save(res: dict[str, dict], out_file: Path, has_level: bool, reg: common.Regi
     coords = {"time": r0["time"], "latitude": r0["lat"], "longitude": r0["lon"]}
     if has_level:
         coords["level"] = xr.DataArray(r0["level"], dims="level", attrs={"units": "hPa"})
-    ds = xr.Dataset(
+    return xr.Dataset(
         {v: (dims, r["data"], r["attrs"]) for v, r in res.items()},
         coords=coords,
         attrs={
@@ -181,14 +186,13 @@ def save(res: dict[str, dict], out_file: Path, has_level: bool, reg: common.Regi
             **common.stamp(reg),
         },
     )
-    common.write(ds, out_file)
 
 
-def is_complete(out_file: Path, variables: list[str]) -> bool:
-    """Si ``out_file`` ya existe y contiene todas las ``variables`` pedidas."""
+def is_complete(out_file: common.Store, variables: list[str]) -> bool:
+    """Si ``out_file`` ya existe (local o S3) y contiene todas las ``variables`` pedidas."""
     if not out_file.exists():
         return False
-    with xr.open_dataset(out_file, engine="h5netcdf") as ds:
+    with out_file.open_dataset() as ds:
         return set(variables) <= set(ds.data_vars)
 
 
@@ -201,16 +205,20 @@ def concat_parts(parts: list[dict]) -> dict:
 
 
 def download_pl(
-    ex: ProcessPoolExecutor, day: dt.date, variables: list[str], reg: common.Region, out_file: Path
+    ex: ProcessPoolExecutor,
+    day: dt.date,
+    variables: list[str],
+    reg: common.Region,
+    out_file: common.Store,
 ) -> None:
-    """Descarga los niveles de presión de ``day`` y los escribe en ``out_file``.
+    """Descarga los niveles de presión de ``day`` y los escribe en ``out_file`` (local o S3).
 
-    Cada variable terminada se guarda aparte en ``.parts/``; si el proceso se corta, al volver a
-    correr solo se bajan las variables que faltan. Al final se unen en un solo archivo.
+    Cada variable terminada se guarda aparte en ``.parts/`` (siempre en disco local); si el proceso
+    se corta, al volver a correr solo se bajan las variables que faltan. Al final se unen en un solo
+    archivo, que es el único que se escribe en el destino (y por tanto el único que se sube a S3).
     """
-    parts_dir = out_file.parent / ".parts"
-    parts_dir.mkdir(exist_ok=True)
-    part = {v: parts_dir / f"{out_file.stem}_{v}.nc" for v in variables}
+    PARTS_DIR.mkdir(parents=True, exist_ok=True)
+    part = {v: PARTS_DIR / f"{out_file.stem}_{v}.nc" for v in variables}
     missing = [v for v in variables if not part[v].exists()]
     # Una tarea por (variable, hora): cada una transfiere un bloque global.
     fut = {
@@ -220,13 +228,18 @@ def download_pl(
     }
     for v in missing:
         t0 = time.time()
-        save({v: concat_parts([fut[v, k].result() for k in range(24)])}, part[v], True, reg)
+        ds = build({v: concat_parts([fut[v, k].result() for k in range(24)])}, True, reg)
+        write_local(ds, part[v])
         print(f"  {out_file.stem} {v}: {time.time() - t0:.0f} s", flush=True)
     merge_parts([part[v] for v in variables], out_file)
 
 
 def download_sfc(
-    ex: ProcessPoolExecutor, day: dt.date, variables: list[str], reg: common.Region, out_file: Path
+    ex: ProcessPoolExecutor,
+    day: dt.date,
+    variables: list[str],
+    reg: common.Region,
+    out_file: common.Store,
 ) -> None:
     """Descarga las variables de superficie de ``day`` (solo el recuadro) y las escribe en ``out_file``."""
     h0, h1 = day_hours(sfc_path(variables[0], day), day)
@@ -234,11 +247,18 @@ def download_sfc(
         v: ex.submit(common.retry, read, sfc_path(v, day), reg, h0, h1, 4 * 2**20)
         for v in variables
     }
-    save({v: f.result() for v, f in fut.items()}, out_file, False, reg)
+    common.write(build({v: f.result() for v, f in fut.items()}, False, reg), out_file)
 
 
-def merge_parts(parts: list[Path], out_file: Path) -> None:
-    """Une los archivos de una variable ``parts`` en ``out_file`` y los borra."""
+def write_local(ds: xr.Dataset, out_file: Path) -> None:
+    """Escribe ``ds`` como NetCDF comprimido en un archivo local (los ``.parts/`` intermedios)."""
+    tmp = out_file.with_suffix(".tmp")
+    ds.to_netcdf(tmp, engine="h5netcdf", encoding=dict.fromkeys(ds.data_vars, common.COMPRESSION))
+    tmp.rename(out_file)
+
+
+def merge_parts(parts: list[Path], out_file: common.Store) -> None:
+    """Une los ``.parts/`` locales ``parts`` y escribe el resultado en ``out_file`` (local o S3)."""
     ds = xr.merge([xr.load_dataset(f, engine="h5netcdf") for f in parts], combine_attrs="override")
     ds.attrs["created"] = common.now()
     common.write(ds, out_file)
@@ -266,6 +286,7 @@ def main() -> None:
         help="lecturas simultáneas (por defecto 4; ~400 MB de RAM cada una)",
     )
     a = p.parse_args()
+    common.set_data_root(a)
     reg = common.region_of(a)
 
     with common.pool(a.processes) as ex:
@@ -276,7 +297,7 @@ def main() -> None:
             ):
                 if not variables:
                     continue
-                out_file = common.folder(reg.name, source) / f"{source}_{day:%Y%m%d}.nc"
+                out_file = common.folder(reg.name, source).child(f"{source}_{day:%Y%m%d}.nc")
                 if is_complete(out_file, variables) and not a.force:
                     print(f"{out_file.name}: ya existe", flush=True)
                     continue

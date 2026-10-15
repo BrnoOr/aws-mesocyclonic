@@ -206,13 +206,14 @@ def main() -> None:
     """Punto de entrada: calcula los índices de cada día que tenga ERA5 de presión y de superficie."""
     p = common.parser(__doc__, "los días")
     a = p.parse_args()
+    common.set_data_root(a)
     reg = common.region_of(a)
-    base = common.CROPS / reg.name
+    base = common.CROPS.child(reg.name)
 
     for day in common.days(a):
-        f_pl = base / "era5_pl" / f"era5_pl_{day:%Y%m%d}.nc"
-        f_sfc = base / "era5_sfc" / f"era5_sfc_{day:%Y%m%d}.nc"
-        out_file = common.folder(reg.name, "era5_indices") / f"era5_idx_{day:%Y%m%d}.nc"
+        f_pl = base.child("era5_pl", f"era5_pl_{day:%Y%m%d}.nc")
+        f_sfc = base.child("era5_sfc", f"era5_sfc_{day:%Y%m%d}.nc")
+        out_file = common.folder(reg.name, "era5_indices").child(f"era5_idx_{day:%Y%m%d}.nc")
         if out_file.exists() and not a.force:
             print(f"{out_file.name}: ya existe", flush=True)
             continue
@@ -220,10 +221,7 @@ def main() -> None:
             print(f"{day}: falta {f_pl.name} o {f_sfc.name} (corre download_era5.py)", flush=True)
             continue
         t0 = time.time()
-        with (
-            xr.open_dataset(f_pl, engine="h5netcdf") as pl,
-            xr.open_dataset(f_sfc, engine="h5netcdf") as sfc,
-        ):
+        with f_pl.open_dataset() as pl, f_sfc.open_dataset() as sfc:
             missing = {"u", "v", "t", "z"} - set(pl.data_vars)
             missing |= {"10u", "10v", "2t", "2d", "sp", "cape"} - set(sfc.data_vars)
             if missing:

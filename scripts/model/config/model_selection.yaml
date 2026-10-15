@@ -1,0 +1,91 @@
+# Configuración de la selección de modelos de tornados (ver docs/claude/design.md y requirements.md).
+# Este archivo se fija ANTES de correr la validación cruzada: la regla de decisión no se toca al ver
+# los resultados (R5.1). Toda salida registra la versión de este archivo.
+
+version: "1.0.0"
+semilla: 20260115
+
+# --- Dominio y unidad de análisis -------------------------------------------------------------
+dominio:
+  # Celda de 1° × día UTC. Recuadro que cubre los eventos 2018-2025 (lat -22..-42, lon -70..-74)
+  # con margen; la grilla de 1° se centra en enteros + 0,5.
+  lat_min: -43.5
+  lat_max: -21.5
+  lon_min: -74.5
+  lon_max: -69.5
+  resolucion_grados: 1.0
+  temporada: [4, 9]        # meses abril..septiembre (inclusive)
+  anios_entrenamiento: [2018, 2019, 2020, 2021, 2022, 2023, 2024]
+  anio_ciego: 2025
+  anio_puntaje: 2026
+
+# --- Umbrales de persistencia por índice (horas con el índice sobre el umbral) ----------------
+persistencia:
+  neg_stp: 0.3
+  sherbe: 1.0
+  sherbs3: 1.0
+  vgp: 1.0
+
+# --- Acierto tolerante (R: "Acierto tolerante") -----------------------------------------------
+tolerancia:
+  vecindad_celdas: 1       # 3x3 (celda y 8 vecinas)
+  ventana_dias: [-1, 0]    # mismo día o el anterior
+
+# --- Transformaciones de variables asimétricas (design.md §6) ---------------------------------
+transformaciones:
+  log1p: [cape, vgp_max, vgp_max3x3]
+
+# --- Variables por modelo (design.md §6) ------------------------------------------------------
+modelos:
+  M0:
+    tipo: climatologia
+    variables: [mes, banda_lat]
+    alpha: 1.0
+    beta: 50.0
+  M1:
+    tipo: regla_fisica
+    variables: [neg_stp_max, sherbe_max]
+    umbral_neg_stp: 0.3
+    umbral_sherbe: 1.0
+  M2:
+    tipo: logistica_l2
+    variables: [neg_stp_max, sherbe_max, vgp_max, neg_srh01_tend6, sherbe_max3x3]
+    C_grid_log10: [-2, 2, 10]   # inicio, fin, n puntos (logspace)
+    complejidad: 1
+  M3:
+    tipo: splines
+    variables: [neg_stp_max, sherbe_max, vgp_max]
+    n_knots: 4
+    degree: 3
+    complejidad: 2
+  M4:
+    tipo: boosting
+    variables_patron: ["*_max", "*_tend6", "*_pers", "*_max3x3"]
+    max_depth: 3
+    learning_rate: 0.05
+    max_iter: 200
+    min_samples_leaf: 20
+    l2_regularization: 1.0
+    monotonic_indices: true     # +1 para los índices (más alto = más favorable)
+    complejidad: 3
+
+# --- Validación cruzada -----------------------------------------------------------------------
+validacion:
+  pod_objetivo: 0.70
+  bootstrap_replicas: 1000
+
+# --- Regla de decisión fijada de antemano (design.md §8) --------------------------------------
+decision:
+  pod_objetivo: 0.70
+  elegible:
+    supera_m0_en: pr_auc
+    far_max_vs_m1: 0.0        # FAR(m) - FAR(M1) <= 0
+  desempate: un_error_estandar
+  orden_simplicidad: [M2, M3, M4]
+  si_ninguno: M1
+
+# --- Metas del proyecto (tornados-contexto.md) ------------------------------------------------
+metas:
+  pod_min: 0.70
+  far_max: 0.50
+  dias_por_deteccion_max: 2.0

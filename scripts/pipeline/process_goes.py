@@ -75,7 +75,7 @@ def reproject(
     )
 
 
-def save(out: xr.Dataset, source: xr.Dataset, out_file: Path) -> None:
+def save(out: xr.Dataset, source: xr.Dataset, out_file: common.Store) -> None:
     """Escribe ``out`` con la misma codificación entera (escala y desfase) que tenía ``source``."""
     enc = {}
     for v in out.data_vars:
@@ -102,26 +102,28 @@ def main() -> None:
         help="distancia máxima al píxel más cercano, en grados",
     )
     a = p.parse_args()
+    common.set_data_root(a)
     reg = common.region_of(a)
     lat, lon = grid(reg, a.resolution)
 
     for day in common.days(a):
-        origin = common.CROPS / reg.name / "goes" / f"{day:%Y%m%d}"
-        hours = sorted(origin.glob("goes_*.nc"))
+        origin = common.CROPS.child(reg.name, "goes", f"{day:%Y%m%d}")
+        hours = origin.glob("goes_*.nc")
         if not hours:
             print(
-                f"{day}: sin recortes GOES en {origin} (corre antes download_goes.py)", flush=True
+                f"{day}: sin recortes GOES en {origin.root} (corre antes download_goes.py)",
+                flush=True,
             )
             continue
-        dest = common.folder(reg.name, "goes_latlon") / f"{day:%Y%m%d}"
-        dest.mkdir(exist_ok=True)
+        dest = common.folder(reg.name, "goes_latlon").child(f"{day:%Y%m%d}")
+        dest.mkdir()
         idx = valid = None
         t0 = time.time()
         for r in hours:
-            out_file = dest / r.name
+            out_file = dest.child(r.name)
             if out_file.exists() and not a.force:
                 continue
-            with xr.open_dataset(r, engine="h5netcdf") as ds:
+            with r.open_dataset() as ds:
                 if idx is None or valid is None:
                     idx, valid = nearest_index(
                         ds["lat"].values, ds["lon"].values, lat, lon, a.radius

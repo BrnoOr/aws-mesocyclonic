@@ -17,7 +17,9 @@ dependencies = [
     "pillow>=12.3.0",
     "plotly>=7.1.0",
     "pyarrow>=25.0.1",
+    "pyyaml>=6.0",
     "s3fs>=2026.9.0",
+    "scikit-learn>=1.5.0",
     "scipy>=1.18.1",
     "streamlit>=1.64.0",
     "xarray>=2026.9.0",
@@ -25,6 +27,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "jupyterlab>=4.6.4",
     "pandas-stubs>=3.0.5.260914",
     "pyright>=1.1.414",
     "ruff>=0.16.9",

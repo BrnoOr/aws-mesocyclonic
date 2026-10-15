@@ -1,8 +1,12 @@
 """Utilidades compartidas por los scripts de descarga, procesamiento y visualización.
 
-Define las regiones de análisis, las rutas de salida en ``data/crops/``, el acceso anónimo a S3 y
-la geometría de la grilla fija del ABI de GOES. Los scripts lo importan como módulo hermano
-(``import common``), porque ``scripts/`` no es un paquete instalable.
+Define las regiones de análisis, las rutas de salida (en ``data/crops/`` o en un bucket de S3), el
+acceso anónimo a S3 y la geometría de la grilla fija del ABI de GOES. Los scripts lo importan como
+módulo hermano (``import common``), porque ``scripts/`` no es un paquete instalable.
+
+Las rutas de datos (``DATA`` y ``CROPS``) son objetos ``store.Store``, no ``pathlib.Path``: así el
+mismo código escribe en disco local o directo en un bucket del equipo según ``--data-root`` o la
+variable de entorno ``MESO_DATA_ROOT`` (ver ``scripts/store.py``).
 """
 
 import argparse
@@ -20,14 +24,18 @@ import s3fs
 import xarray as xr
 from botocore.exceptions import BotoCoreError
 
+import store
+from store import COMPRESSION as COMPRESSION  # reexportado: scripts y figuras usan common.COMPRESSION
+from store import Store
+
 ROOT = Path(__file__).resolve().parents[1]
-DATA = ROOT / "data"
-CROPS = DATA / "crops"
+
+# Raíz de datos: ``data/`` local por defecto, o lo que fijen --data-root / MESO_DATA_ROOT.
+# ``set_data_root`` la reemplaza al interpretar los argumentos de un script.
+DATA = Store.at(store.default_root(None, ROOT / "data"))
+CROPS = DATA.child("crops")
 
 G = 9.80665  # m/s², gravedad estándar (geopotencial → altura)
-
-# Compresión sin pérdida para todo lo que se escribe en NetCDF (gzip + shuffle).
-COMPRESSION = {"zlib": True, "complevel": 4, "shuffle": True}
 
 
 @dataclass(frozen=True)
@@ -97,7 +105,28 @@ def parser(doc: str | None, unit: str) -> argparse.ArgumentParser:
         help="región a medida en grados (p. ej. -30 -45 -76 -70); se guarda con el nombre de --region",
     )
     p.add_argument("--force", action="store_true", help=f"rehace {unit} que ya existen")
+    p.add_argument(
+        "--data-root",
+        default=None,
+        metavar="RUTA",
+        help=(
+            "raíz de los datos: una carpeta local o un prefijo s3://bucket/prefijo "
+            f"(por defecto data/ del repositorio o la variable de entorno {store.ENV_VAR})"
+        ),
+    )
     return p
+
+
+def set_data_root(a: argparse.Namespace) -> None:
+    """Fija ``DATA`` y ``CROPS`` según ``--data-root`` (o la env var ``MESO_DATA_ROOT``).
+
+    Hay que llamarlo justo después de ``parse_args`` y antes de usar ``CROPS``/``folder``, para que la
+    salida de los scripts caiga en la raíz pedida (local o S3). Si no se pasa ``--data-root`` ni la
+    variable de entorno, mantiene ``data/`` dentro del repositorio.
+    """
+    global DATA, CROPS
+    DATA = Store.at(store.default_root(a.data_root, ROOT / "data"))
+    CROPS = DATA.child("crops")
 
 
 def days(a: argparse.Namespace) -> list[dt.date]:
@@ -107,22 +136,20 @@ def days(a: argparse.Namespace) -> list[dt.date]:
     return [a.start + dt.timedelta(days=i) for i in range((end - a.start).days + 1)]
 
 
-def folder(region: str, source: str) -> Path:
-    """Carpeta de salida ``data/crops/<region>/<source>/``, creada si no existe."""
-    d = CROPS / region / source
-    d.mkdir(parents=True, exist_ok=True)
+def folder(region: str, source: str) -> Store:
+    """Carpeta de salida ``<raíz>/crops/<region>/<source>/``, creada si es local y no existe."""
+    d = CROPS.child(region, source)
+    d.mkdir()
     return d
 
 
-def write(ds: xr.Dataset, out_file: Path, encoding: dict | None = None) -> None:
-    """Escribe ``ds`` en ``out_file`` pasando por un ``.tmp``, para no dejar NetCDF a medias.
+def write(ds: xr.Dataset, out_file: Store, encoding: dict | None = None) -> None:
+    """Escribe ``ds`` en ``out_file`` (local o S3) de forma atómica.
 
-    Sin ``encoding``, cada variable se comprime con ``COMPRESSION``.
+    Sin ``encoding``, cada variable se comprime con ``COMPRESSION``. Delega en ``Store.write``: en
+    local pasa por un ``.tmp`` y renombra; en S3 arma el NetCDF en un temporal y lo sube como objeto.
     """
-    tmp = out_file.with_suffix(".tmp")
-    enc = dict.fromkeys(ds.data_vars, COMPRESSION) if encoding is None else encoding
-    ds.to_netcdf(tmp, engine="h5netcdf", encoding=enc)
-    tmp.rename(out_file)
+    out_file.write(ds, encoding)
 
 
 def now() -> str:
