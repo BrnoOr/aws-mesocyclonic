@@ -1,10 +1,12 @@
-"""App Streamlit con los resultados del sistema de selección de modelos de tornados.
+"""App Streamlit con el producto final: candidatos a tornado en Chile, explicados.
 
-Muestra el modelo elegido (el mejor), la comparación de modelos por validación cruzada, la prueba
-ciega 2025 y el mapa de candidatos 2026. Lee los CSV/MD de ``data/outputs/``.
+Refleja la presentación del producto (`docs/presentacion_producto_final.pptx`): el problema, la
+selección de modelos, los resultados por corte, el detalle año a año, la prueba ciega 2025, las metas
+del proyecto y la lista priorizada de candidatos 2026 con sus variables explicativas. Lee los CSV/MD
+de ``data/outputs/`` que generan `cv.py`, `decide.py`, `score.py` y `resumen_pitch.py`.
 
 Ejecutar::
-    uv run streamlit run scripts/model/app_resultados.py
+    uv run streamlit run scripts/model/app_resultados.py --server.port 8502
 """
 
 from pathlib import Path
@@ -15,7 +17,7 @@ import streamlit as st
 
 OUT = Path(__file__).resolve().parents[2] / "data" / "outputs"
 
-st.set_page_config(page_title="Tornados Chile — Selección de modelo", layout="wide")
+st.set_page_config(page_title="Tornados Chile — Candidatos explicados", layout="wide", page_icon="🌪️")
 
 
 @st.cache_data
@@ -31,75 +33,134 @@ def read_text(name: str) -> str:
     return f.read_text(encoding="utf-8") if f.exists() else ""
 
 
-st.title("🌪️ Detección y anticipación de tornados en Chile")
-st.caption(
-    "Hackatón CR2 · selección de modelo sobre ERA5 (2018–2026), unidad celda 1° × día UTC. "
-    "Sistema de apoyo a la revisión, no un pronóstico operativo."
-)
+def row(df: pd.DataFrame, corte: str, modelo: str) -> pd.Series | None:
+    """Fila del cv_report para un corte y modelo, o None."""
+    sub = df[(df["corte"] == corte) & (df["modelo"] == modelo)]
+    return sub.iloc[0] if not sub.empty else None
+
 
 cv = read_csv("cv_report.csv")
-decision_dia = read_text("decision_dia.md")
+by_fold = read_csv("cv_by_fold.csv")
 
-# --- Encabezado con el modelo elegido y sus cifras ---------------------------------------------
-best_cut = "dia"
-cv_dia = cv[cv["corte"] == best_cut] if not cv.empty else pd.DataFrame()
-elegido = "M2"
-m2 = cv_dia[cv_dia["modelo"] == "M2"]
-m1 = cv_dia[cv_dia["modelo"] == "M1"]
+# Modelo elegido por corte, leído de decision_<corte>.md.
+import re  # noqa: E402
 
-st.header(f"Modelo elegido: **{elegido}** (logística penalizada, corte del día)")
-if not m2.empty and not m1.empty:
-    r2, r1 = m2.iloc[0], m1.iloc[0]
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("POD (detección)", f"{r2['POD']:.0%}", help="Fracción de tornados detectados (tolerante)")
-    c2.metric("FAR (falsas alarmas)", f"{r2['FAR']:.0%}",
-              delta=f"{(r2['FAR'] - r1['FAR']):.0%} vs regla física", delta_color="inverse")
-    c3.metric("Días de alerta / detección", f"{r2['dias_por_deteccion']:.1f}",
-              delta=f"{(r2['dias_por_deteccion'] - r1['dias_por_deteccion']):.1f} vs M1",
-              delta_color="inverse")
-    c4.metric("Alertas totales", f"{int(r2['alertas'])}",
-              delta=f"{int(r2['alertas'] - r1['alertas'])} vs M1", delta_color="inverse")
-    st.info(
-        f"Frente a la regla física de Marín et al. (M1), **M2 mantiene la misma detección "
-        f"({r2['POD']:.0%}) pero reduce las alertas de {int(r1['alertas'])} a {int(r2['alertas'])}** "
-        f"y los días de alerta por tornado de {r1['dias_por_deteccion']:.1f} a "
-        f"{r2['dias_por_deteccion']:.1f}."
-    )
 
-tab1, tab2, tab3, tab4 = st.tabs(
-    ["📊 Comparación de modelos", "🎯 Prueba ciega 2025", "🗺️ Candidatos 2026", "📄 Decisión"]
+def elegido_de(corte: str) -> str:
+    """Modelo elegido leído de decision_<corte>.md (M1 por defecto)."""
+    txt = read_text(f"decision_{corte}.md")
+    m = re.search(r"Modelo elegido:\s*\*\*(M\d)\*\*", txt)
+    return m.group(1) if m else "M1"
+
+
+elegido_dia = elegido_de("dia")
+
+# ================================ Encabezado =====================================================
+st.title("🌪️ Encontrar las tormentas que nadie vio")
+st.markdown(
+    "**Detección y anticipación de tornados en Chile** con ERA5 y aprendizaje automático · "
+    "Hackatón Breaking Barriers · CR2 · AWS."
+)
+st.markdown(
+    "> El producto es una **lista priorizada de candidatos** (celda de 1° × día UTC) con su puntaje y "
+    "los índices físicos que lo explican. Sirve para **revisar casos y buscar en el archivo histórico "
+    "los tornados que nadie reportó**. No es un pronóstico operativo: ERA5 es un reanálisis con días "
+    "de latencia y el puntaje no es una probabilidad calibrada."
 )
 
-# --- Tab 1: comparación de modelos (CV) --------------------------------------------------------
-with tab1:
-    st.subheader("Validación cruzada dejando un año fuera (2018–2024)")
+# Métricas destacadas del modelo elegido (corte día).
+r2 = row(cv, "dia", elegido_dia)
+r1 = row(cv, "dia", "M1")
+if r2 is not None and r1 is not None:
+    st.subheader(f"Modelo elegido (corte del día): **{elegido_dia}** · logística penalizada")
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("POD · detección", f"{r2['POD']:.0%}", f"{int(r2['detectados'])}/{int(r2['eventos'])} eventos")
+    c2.metric("FAR · falsas alarmas", f"{r2['FAR']:.0%}",
+              f"{(r2['FAR'] - r1['FAR']):.0%} vs regla física", delta_color="inverse")
+    c3.metric("Días alerta / detección", f"{r2['dias_por_deteccion']:.1f}",
+              f"{(r2['dias_por_deteccion'] - r1['dias_por_deteccion']):.1f} vs M1", delta_color="inverse")
+    c4.metric("Alertas totales", f"{int(r2['alertas'])}",
+              f"{int(r2['alertas'] - r1['alertas'])} vs M1", delta_color="inverse")
+
+tabs = st.tabs([
+    "🧭 El problema", "📊 Modelos", "📅 Año a año", "🎯 Prueba ciega 2025",
+    "🏁 Metas", "🗺️ Candidatos 2026", "📄 Decisión",
+])
+
+# ================================ Tab: el problema ==============================================
+with tabs[0]:
+    st.subheader("En Chile hay tornados, pero casi nadie los ve")
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Catálogo", "102", "tornados y trombas 1554–2025")
+    c2.metric("Desde 2015", "68", "el registro crece con los celulares")
+    c3.metric("Brote Biobío 2019", "7", "tornados en 24 h (EF1–EF2)")
+    c4.metric("Radares en 2019", "0", "nadie ve girar la tormenta")
+    st.markdown(
+        "**Por qué es difícil (régimen HSLC: alta cizalle, bajo CAPE).** No es Oklahoma: el CAPE es "
+        "bajo (200–1.000 J/kg) y la cizalle alta. En el hemisferio sur la SRH y el STP tornádicos son "
+        "**negativos** y las supercélulas favorecidas son *left-movers*; usamos `neg_stp = −STP` y "
+        "`neg_srh01 = −SRH₀₋₁`. La vara física de comparación es la regla de **Marín et al. (2024)**: "
+        "alerta si STP ≤ −0,3 o SHERBE ≥ 1."
+    )
+    st.info(
+        "El catálogo **solo tiene positivos**: no hay «días sin tornado» confirmados. Se plantea como "
+        "aprendizaje con **positivos y no etiquetados (PU)**, con sesgo de reporte (población, hora, año)."
+    )
+
+# ================================ Tab: modelos ==================================================
+with tabs[1]:
+    st.subheader("Cinco modelos, del más simple al más flexible")
+    st.markdown(
+        "M0 climatología · M1 regla física (Marín et al.) · M2 logística L2 · M3 splines · "
+        "M4 boosting monótono. Validación **dejando un año fuera** (2018–2024), umbral con POD ≥ 70 % "
+        "en validación interna, acierto **tolerante** (celda o vecinas, mismo día o anterior)."
+    )
     if not cv.empty:
-        corte = st.radio("Corte temporal", sorted(cv["corte"].unique()), horizontal=True)
+        corte = st.radio("Corte temporal", sorted(cv["corte"].unique()), horizontal=True,
+                         help="«día» usa 00–23 UTC; «12utc» solo 00–12 UTC del mismo día (anticipación)")
         sub = cv[cv["corte"] == corte].copy()
         show = sub[["modelo", "POD", "FAR", "dias_por_deteccion", "PR_AUC", "detectados",
-                    "eventos", "alertas"]].rename(columns={
-            "dias_por_deteccion": "días/detección", "detectados": "detectados",
-            "eventos": "eventos", "alertas": "alertas"})
+                    "eventos", "alertas"]].rename(columns={"dias_por_deteccion": "días/det"})
         st.dataframe(show.style.format({
-            "POD": "{:.0%}", "FAR": "{:.0%}", "días/detección": "{:.1f}", "PR_AUC": "{:.3f}"
+            "POD": "{:.0%}", "FAR": "{:.0%}", "días/det": "{:.1f}", "PR_AUC": "{:.3f}"
         }), use_container_width=True, hide_index=True)
-        fig = px.scatter(
-            sub, x="FAR", y="POD", text="modelo", size="PR_AUC", color="modelo",
-            labels={"FAR": "FAR (falsas alarmas)", "POD": "POD (detección)"},
-            title=f"POD vs FAR por modelo — corte {corte}",
-        )
+        st.success(f"**Elegido en «{corte}»: {elegido_de(corte)}** — "
+                   f"{read_text(f'decision_{corte}.md').split('razón')[0][-200:].strip() or 'ver pestaña Decisión'}")
+        fig = px.scatter(sub, x="FAR", y="POD", text="modelo", size="PR_AUC", color="modelo",
+                         labels={"FAR": "FAR", "POD": "POD"}, title=f"POD vs FAR — corte {corte}")
         fig.add_hline(y=0.70, line_dash="dash", annotation_text="meta POD 70%")
         fig.add_vline(x=0.50, line_dash="dash", annotation_text="meta FAR 50%")
         fig.update_traces(textposition="top center")
         st.plotly_chart(fig, use_container_width=True)
-        st.caption("El tamaño del punto es el PR-AUC. El FAR se mide sobre días de evento y de "
-                   "control, por lo que sobrestima el real.")
+        st.caption("Tamaño = PR-AUC. El FAR se mide sobre días de evento y de control, así que "
+                   "sobrestima el real.")
 
-# --- Tab 2: prueba ciega 2025 ------------------------------------------------------------------
-with tab2:
-    st.subheader("Prueba ciega 2025 — una sola evaluación, sin reajuste")
-    bd = read_csv("blind_2025_dia.csv")
-    b12 = read_csv("blind_2025_12utc.csv")
+# ================================ Tab: año a año ================================================
+with tabs[2]:
+    st.subheader("Detección año a año (corte del día)")
+    if not by_fold.empty:
+        bf = by_fold[by_fold["corte"] == "dia"].copy()
+        piv = bf.pivot_table(index="anio", columns="modelo", values="detectados", aggfunc="first")
+        ev = bf.groupby("anio")["eventos"].first()
+        piv.insert(0, "eventos", ev)
+        cols = ["eventos"] + [m for m in ["M1", elegido_dia] if m in piv.columns]
+        tabla = piv[cols].fillna(0).astype(int)
+        tabla.loc["Suma"] = tabla.sum()
+        st.dataframe(tabla, use_container_width=True)
+        st.caption("Eventos detectados por año (acierto tolerante). La suma por año difiere del total "
+                   "agrupado, que junta las predicciones de todos los pliegues de validación.")
+        bf2 = bf[bf["modelo"].isin(["M1", elegido_dia])]
+        fig = px.bar(bf2, x="anio", y="detectados", color="modelo", barmode="group",
+                     labels={"anio": "año", "detectados": "eventos detectados"},
+                     title="Eventos detectados por año: regla física vs modelo elegido")
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.warning("No hay cv_by_fold.csv todavía.")
+
+# ================================ Tab: prueba ciega 2025 ========================================
+with tabs[3]:
+    st.subheader("Prueba ciega 2025 — una sola evaluación, sin reajustar nada")
+    bd, b12 = read_csv("blind_2025_dia.csv"), read_csv("blind_2025_12utc.csv")
     blind = pd.concat([bd, b12], ignore_index=True)
     if not blind.empty:
         show = blind[["corte", "modelo", "POD", "FAR", "dias_por_deteccion", "detectados", "eventos"]]
@@ -107,46 +168,71 @@ with tab2:
                      use_container_width=True, hide_index=True)
         if not bd.empty:
             r = bd.iloc[0]
-            st.success(
-                f"En el corte del día, M2 detectó **{int(r['detectados'])} de {int(r['eventos'])}** "
-                f"tornados de 2025 (POD {r['POD']:.0%}) en datos nunca vistos durante el ajuste."
-            )
+            st.success(f"Con todo el día, {r['modelo']} detectó **{int(r['detectados'])} de "
+                       f"{int(r['eventos'])}** eventos de 2025 (POD {r['POD']:.0%}), sin reajuste.")
+        st.caption("Solo 2 eventos en 2025: confirma la dirección de la validación, no la mide con "
+                   "precisión.")
 
-# --- Tab 3: candidatos 2026 --------------------------------------------------------------------
-with tab3:
-    st.subheader("Candidatos 2026 (abril–julio) — corte del día, modelo M2")
+# ================================ Tab: metas ====================================================
+with tabs[4]:
+    st.subheader("Dónde estamos frente a las metas comprometidas")
+    if r2 is not None:
+        pod, far, dias = r2["POD"], r2["FAR"], r2["dias_por_deteccion"]
+        c1, c2, c3 = st.columns(3)
+        c1.metric("POD", f"{pod:.0%}", "meta ≥ 70% · " + ("✅ CUMPLE" if pod >= 0.70 else "❌ NO"))
+        c2.metric("FAR", f"{far:.0%}", "meta ≤ 50% · " + ("✅ CUMPLE" if far <= 0.50 else "❌ NO (sobrestimado)"),
+                  delta_color="off")
+        c3.metric("Días/detección", f"{dias:.1f}",
+                  "meta ≤ 2 · " + ("✅ CUMPLE" if dias <= 2 else "🟡 CERCA" if dias <= 3 else "❌ NO"),
+                  delta_color="off")
+        st.markdown(
+            f"- **POD {pod:.0%}** ({int(r2['detectados'])}/{int(r2['eventos'])} eventos): cumple la meta de detección.\n"
+            f"- **FAR {far:.0%}**: no cumple, pero el control es *sin etiqueta*, así que el FAR real es menor.\n"
+            f"- **{dias:.1f} días por detección** frente a {r1['dias_por_deteccion']:.1f} de la regla física: cerca de la meta de 2."
+        )
+        st.caption("Validación cruzada 2018–2024, corte «día», modelo elegido.")
+
+# ================================ Tab: candidatos 2026 =========================================
+with tabs[5]:
+    st.subheader(f"Candidatos 2026 — corte del día, modelo {elegido_dia}")
     cand = read_csv("candidatos_2026_dia.csv")
     if cand.empty:
         cand = read_csv("candidatos_2026_dia_top300.csv")
     if not cand.empty:
         cand["fecha"] = pd.to_datetime(cand["fecha"])
-        solo_alertas = st.checkbox("Mostrar solo celdas-día en alerta", value=True)
-        view = cand[cand["alerta"] == 1] if solo_alertas else cand
-        st.caption(f"{len(view)} celdas-día ({int(cand['alerta'].sum())} alertas en total). "
-                   f"ERA5 disponible hasta {cand['fecha'].max().date()}.")
-        fig = px.scatter_geo(
-            view.head(500), lat="lat", lon="lon", color="score", size="score",
-            hover_data=["fecha", "neg_stp_max", "sherbe_max", "vgp_max"],
-            color_continuous_scale="YlOrRd", scope="south america",
-            title="Candidatos 2026 (color = puntaje de propensión)",
-        )
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Celdas-día puntuadas", f"{len(cand):,}")
+        c2.metric("Alertas (modelo elegido)", f"{int(cand['alerta'].sum())}")
+        c3.metric("Último día con ERA5", f"{cand['fecha'].max().date()}")
+        solo = st.checkbox("Mostrar solo celdas-día en alerta", value=True)
+        view = cand[cand["alerta"] == 1] if solo else cand
+        fig = px.scatter_geo(view.head(500), lat="lat", lon="lon", color="score", size="score",
+                             hover_data=["fecha"], color_continuous_scale="YlOrRd", scope="south america",
+                             title="Candidatos 2026 (color = puntaje)")
         fig.update_geos(lataxis_range=[-44, -21], lonaxis_range=[-76, -68], resolution=50,
                         showland=True, landcolor="rgb(240,240,235)")
         st.plotly_chart(fig, use_container_width=True)
-        st.markdown("**Top 15 candidatos por puntaje**")
+        st.warning(
+            "⚠️ **Por revisar:** varios candidatos de mayor puntaje caen cerca de la cordillera, donde "
+            "los índices de niveles bajos pueden ser **artefactos** (el dominio v1 excede el recorte "
+            "ERA5 y aún no hay máscara de terreno). La v2 corrige el dominio y enmascara terreno > 1.500 m."
+        )
+        st.markdown("**Top 15 candidatos por puntaje** (con las variables que más contribuyen)")
         top = view.sort_values("score", ascending=False).head(15)
-        cols = ["fecha", "lat", "lon", "score", "neg_stp_max", "sherbe_max", "vgp_max",
-                "top1", "top2", "top3"]
-        cols = [c for c in cols if c in top.columns]
+        cols = [c for c in ["fecha", "lat", "lon", "score", "top1", "top2", "top3"] if c in top.columns]
         st.dataframe(top[cols], use_container_width=True, hide_index=True)
     else:
         st.warning("No se encontraron candidatos 2026.")
 
-# --- Tab 4: decisión -----------------------------------------------------------------------------
-with tab4:
-    st.subheader("Documento de decisión (regla fijada de antemano)")
+# ================================ Tab: decisión =================================================
+with tabs[6]:
+    st.subheader("Decisión (regla fijada de antemano)")
     corte_d = st.radio("Corte", ["dia", "12utc"], horizontal=True, key="dec")
     st.markdown(read_text(f"decision_{corte_d}.md") or "_No disponible._")
     st.divider()
     st.subheader("Resumen para el pitch")
     st.markdown(read_text("resumen_pitch.md") or "_No disponible._")
+
+st.divider()
+st.caption("Visor de datos y caso 2019: puerto 8501. Esta app de resultados: puerto 8502. "
+           "Código: scripts/model/ · salidas: data/outputs/. Hackatón CR2 · AWS EC2 Graviton2.")
