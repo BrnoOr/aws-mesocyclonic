@@ -12,7 +12,7 @@ set -euo pipefail
 REPO_URL="${REPO_URL:-https://github.com/BrnoOr/aws-mesocyclonic.git}"
 REPO_REF="${REPO_REF:-main}"
 WEB_PORT="${WEB_PORT:-8502}"
-VORTICE_PREDICTOR="${VORTICE_PREDICTOR:-local}"
+VORTICE_PREDICTOR="${VORTICE_PREDICTOR:-vortice_mlp}"
 VORTICE_SAGEMAKER_ENDPOINT="${VORTICE_SAGEMAKER_ENDPOINT:-}"
 AWS_REGION="${AWS_REGION:-us-east-1}"
 APP_DIR="/opt/vortice"

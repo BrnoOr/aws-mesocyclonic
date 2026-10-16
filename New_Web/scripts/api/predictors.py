@@ -28,6 +28,7 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[2]
 CHECKPOINT = ROOT / "modelo.joblib"
+VORTICE_MLP = ROOT / "vortice_model.npz"
 
 
 class Predictor(Protocol):
@@ -109,14 +110,83 @@ class SageMakerPredictor:
         return {"kind": self.kind, "where": f"endpoint {self.endpoint} ({self.region})"}
 
 
+class VortexMLPPredictor:
+    """El modelo Vórtice (MLP de *PU learning*) servido con numpy, sin PyTorch.
+
+    Carga ``vortice_model.npz`` (lo genera ``convert_vortice.py`` desde ``vortice.pt``) y reproduce
+    el paso hacia adelante del MLP 11 → 64 → 32 → 1. El *dropout* es identidad en inferencia.
+
+    El modelo está entrenado con *PU learning*: su salida es un **puntaje de orden**, no una
+    probabilidad calibrada, y como los eventos son rarísimos (``pi`` ≈ 0,3 %) las probabilidades son
+    diminutas (del orden de 0,001). Por eso:
+
+    - ``predict`` devuelve la **probabilidad cruda** (sigmoide del logit): el contrato honesto para
+      ``/api/predict`` y para comparar con otros motores.
+    - ``display_score`` devuelve el **percentil dentro de la llamada** (0–1), que es lo que el mapa
+      necesita para pintar un rango legible 0–100 conservando el orden del modelo.
+    """
+
+    kind = "vortice_mlp"
+
+    def __init__(self, path: Path = VORTICE_MLP) -> None:
+        """Lee pesos, normalización y metadatos del paquete numpy."""
+        z = np.load(path, allow_pickle=True)
+        self.w0, self.b0 = z["w0"], z["b0"]
+        self.w3, self.b3 = z["w3"], z["b3"]
+        self.w6, self.b6 = z["w6"], z["b6"]
+        self.mean, self.std = z["mean"], z["std"]
+        self.features = [str(f) for f in z["features"]]
+        self.path = path
+        self.metadata = {
+            "model": "vortice-pu-mlp",
+            "feature_set": "era5-11" + ("-goes" if bool(z["use_goes"]) else ""),
+            "region": "south-central",
+            # El umbral crudo del checkpoint ordena ~top 5 % del dominio; en el mapa el puntaje es
+            # percentil, así que se muestra como tal (95) para que la lectura 0–100 tenga sentido.
+            "threshold": 0.95,
+            "raw_threshold": float(z["threshold"]),
+            "pi": float(z["pi"]),
+            "score": "percentil del puntaje crudo del modelo dentro de cada hora (0–100)",
+        }
+
+    def _logit(self, x: pd.DataFrame) -> np.ndarray:
+        """Logit del MLP para ``x`` (columnas en el orden de ``features``)."""
+        xn = (np.nan_to_num(x[self.features].to_numpy(dtype=float)) - self.mean) / self.std
+        h = np.maximum(xn @ self.w0.T + self.b0, 0.0)
+        h = np.maximum(h @ self.w3.T + self.b3, 0.0)
+        return (h @ self.w6.T + self.b6).ravel()
+
+    def predict(self, x: pd.DataFrame) -> np.ndarray:
+        """Probabilidad cruda (sigmoide estable del logit) por fila."""
+        z = self._logit(x)
+        with np.errstate(over="ignore"):
+            return np.where(z >= 0, 1.0 / (1.0 + np.exp(-z)), np.exp(z) / (1.0 + np.exp(z)))
+
+    def display_score(self, x: pd.DataFrame) -> np.ndarray:
+        """Percentil (0–1) del puntaje crudo dentro de esta llamada, para pintar el mapa."""
+        p = self.predict(x)
+        if len(p) <= 1:
+            return p
+        rank = p.argsort().argsort().astype(float)
+        return rank / (len(p) - 1)
+
+    def describe(self) -> dict:
+        """Motor local del MLP de Vórtice."""
+        return {"kind": self.kind, "where": f"MLP PU numpy ({self.path.name})"}
+
+
 def from_env() -> Predictor:
     """El motor que piden las variables de entorno (``local`` si no se pide nada)."""
     kind = os.environ.get("VORTICE_PREDICTOR", "local").strip().lower()
     if kind == "local":
         return LocalPredictor()
+    if kind in ("vortice_mlp", "vortice", "mlp"):
+        return VortexMLPPredictor()
     if kind == "sagemaker":
         endpoint = os.environ.get("VORTICE_SAGEMAKER_ENDPOINT", "").strip()
         if not endpoint:
             raise SystemExit("VORTICE_PREDICTOR=sagemaker necesita VORTICE_SAGEMAKER_ENDPOINT")
         return SageMakerPredictor(endpoint, os.environ.get("AWS_REGION", "us-east-1"))
-    raise SystemExit(f"VORTICE_PREDICTOR desconocido: {kind!r} (usa local o sagemaker)")
+    raise SystemExit(
+        f"VORTICE_PREDICTOR desconocido: {kind!r} (usa local, vortice_mlp o sagemaker)"
+    )

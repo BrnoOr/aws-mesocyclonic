@@ -17,6 +17,7 @@ COPY scripts scripts
 COPY data data
 COPY reports reports
 COPY modelo.joblib modelo.joblib
+COPY vortice_model.npz vortice_model.npz
 
 EXPOSE 8501
 HEALTHCHECK CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health')"

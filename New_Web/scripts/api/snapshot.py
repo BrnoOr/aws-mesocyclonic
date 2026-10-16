@@ -25,9 +25,9 @@ PHOTO = ROOT.parent / "scripts" / "viewer" / "assets" / "tornado_los_angeles.web
 
 
 def main() -> None:
-    """Puntúa cada día disponible con el checkpoint local y escribe los JSON de respaldo."""
+    """Puntúa cada día disponible con el motor elegido y escribe los JSON de respaldo."""
     OUT.mkdir(parents=True, exist_ok=True)
-    pred = predictors.LocalPredictor()
+    pred = predictors.from_env()
     days = service.available_days()
     for day in days:
         payload = service.day_payload(day, pred)

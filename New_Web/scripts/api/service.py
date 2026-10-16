@@ -83,7 +83,10 @@ def day_payload(day: str, predictor: Predictor) -> dict:
             ok = df[feats].notna().all(axis=1).to_numpy()
             score = np.full(len(df), -1)
             if ok.any():
-                p = predictor.predict(df.loc[ok, feats])
+                # Algunos motores (p. ej. el MLP de PU learning) exponen un puntaje de presentación
+                # 0–1 pensado para el mapa; si no, se usa la probabilidad cruda.
+                scorer = getattr(predictor, "display_score", predictor.predict)
+                p = scorer(df.loc[ok, feats])
                 score[ok] = np.rint(p * 100).astype(int)
             hours.append(
                 {

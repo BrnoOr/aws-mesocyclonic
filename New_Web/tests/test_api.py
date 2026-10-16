@@ -131,12 +131,59 @@ class ApiTest(unittest.TestCase):
         self.assertTrue(all(0.0 <= p <= 1.0 for p in probs))
 
     def test_snapshot_matches_api(self) -> None:
-        """Los puntajes de respaldo de ``site/assets`` son los mismos que da la API."""
+        """Los puntajes de respaldo de ``site/assets`` son los mismos que da la API (motor MLP).
+
+        Los respaldos se generan con el motor desplegado (``vortice_mlp``), así que se comparan
+        contra ese mismo motor, no contra el checkpoint local por omisión.
+        """
         snap = ROOT / "site" / "assets" / "day_20190530.json"
         if not snap.exists():
             self.skipTest("falta site/assets; corre scripts/api/snapshot.py")
-        api = self.client.get("/api/day/20190530").json()
+        import service
+
+        pred = predictors.VortexMLPPredictor()
+        api = service.day_payload("20190530", pred)
         self.assertEqual(json.loads(snap.read_text(encoding="utf-8"))["hours"], api["hours"])
+
+
+class VortexMLPTest(unittest.TestCase):
+    """El motor Vórtice (MLP de PU learning) servido con numpy, sin PyTorch."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        """Carga el motor del paquete numpy."""
+        cls.pred = predictors.VortexMLPPredictor()
+
+    def test_from_env_selects_mlp(self) -> None:
+        """``VORTICE_PREDICTOR=vortice_mlp`` elige este motor."""
+        with patch.dict(os.environ, {"VORTICE_PREDICTOR": "vortice_mlp"}, clear=True):
+            self.assertEqual(predictors.from_env().kind, "vortice_mlp")
+
+    def test_contract(self) -> None:
+        """Expone las 11 variables y metadatos del checkpoint."""
+        self.assertEqual(len(self.pred.features), 11)
+        self.assertIn("shear_01", self.pred.features)
+        self.assertEqual(self.pred.metadata["model"], "vortice-pu-mlp")
+
+    def test_predict_is_probability(self) -> None:
+        """``predict`` devuelve una probabilidad cruda en [0, 1] por fila."""
+        x = pd.DataFrame(
+            np.random.default_rng(3).normal(size=(8, 11)) * 5, columns=self.pred.features
+        )
+        p = self.pred.predict(x)
+        self.assertEqual(len(p), 8)
+        self.assertTrue(all(0.0 <= v <= 1.0 for v in p))
+
+    def test_display_score_is_percentile(self) -> None:
+        """``display_score`` ordena igual que ``predict`` y cubre el rango [0, 1]."""
+        x = pd.DataFrame(
+            np.random.default_rng(4).normal(size=(50, 11)) * 5, columns=self.pred.features
+        )
+        raw, disp = self.pred.predict(x), self.pred.display_score(x)
+        self.assertAlmostEqual(float(disp.min()), 0.0)
+        self.assertAlmostEqual(float(disp.max()), 1.0)
+        # El orden del percentil coincide con el del puntaje crudo.
+        self.assertEqual(raw.argsort().tolist(), disp.argsort().tolist())
 
 
 if __name__ == "__main__":
