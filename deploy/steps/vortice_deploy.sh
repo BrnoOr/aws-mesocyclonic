@@ -37,6 +37,12 @@ echo "=== 3/5 Build de la imagen Docker (arquitectura del host) ==="
 docker build -t "${IMAGE}" .
 
 echo "=== 4/5 (Re)arranque del contenedor Vórtice en el puerto ${VORTICE_PORT} ==="
+# Libera el puerto de cualquier contenedor previo (p. ej. la app de resultados anterior en 8502).
+PREV=$(docker ps -q --filter "publish=${VORTICE_PORT}")
+if [ -n "${PREV}" ]; then
+  echo "Deteniendo contenedor(es) que ocupaban el puerto ${VORTICE_PORT}: ${PREV}"
+  docker rm -f ${PREV} >/dev/null 2>&1 || true
+fi
 docker rm -f "${CONTAINER}" >/dev/null 2>&1 || true
 docker run -d \
   --name "${CONTAINER}" \
