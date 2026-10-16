@@ -17,7 +17,9 @@ import streamlit as st
 
 OUT = Path(__file__).resolve().parents[2] / "data" / "outputs"
 
-st.set_page_config(page_title="Tornados Chile — Candidatos explicados", layout="wide", page_icon="🌪️")
+st.set_page_config(
+    page_title="Tornados Chile — Candidatos explicados", layout="wide", page_icon="🌪️"
+)
 
 
 @st.cache_data
@@ -74,18 +76,41 @@ r1 = row(cv, "dia", "M1")
 if r2 is not None and r1 is not None:
     st.subheader(f"Modelo elegido (corte del día): **{elegido_dia}** · logística penalizada")
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("POD · detección", f"{r2['POD']:.0%}", f"{int(r2['detectados'])}/{int(r2['eventos'])} eventos")
-    c2.metric("FAR · falsas alarmas", f"{r2['FAR']:.0%}",
-              f"{(r2['FAR'] - r1['FAR']):.0%} vs regla física", delta_color="inverse")
-    c3.metric("Días alerta / detección", f"{r2['dias_por_deteccion']:.1f}",
-              f"{(r2['dias_por_deteccion'] - r1['dias_por_deteccion']):.1f} vs M1", delta_color="inverse")
-    c4.metric("Alertas totales", f"{int(r2['alertas'])}",
-              f"{int(r2['alertas'] - r1['alertas'])} vs M1", delta_color="inverse")
+    c1.metric(
+        "POD · detección",
+        f"{r2['POD']:.0%}",
+        f"{int(r2['detectados'])}/{int(r2['eventos'])} eventos",
+    )
+    c2.metric(
+        "FAR · falsas alarmas",
+        f"{r2['FAR']:.0%}",
+        f"{(r2['FAR'] - r1['FAR']):.0%} vs regla física",
+        delta_color="inverse",
+    )
+    c3.metric(
+        "Días alerta / detección",
+        f"{r2['dias_por_deteccion']:.1f}",
+        f"{(r2['dias_por_deteccion'] - r1['dias_por_deteccion']):.1f} vs M1",
+        delta_color="inverse",
+    )
+    c4.metric(
+        "Alertas totales",
+        f"{int(r2['alertas'])}",
+        f"{int(r2['alertas'] - r1['alertas'])} vs M1",
+        delta_color="inverse",
+    )
 
-tabs = st.tabs([
-    "🧭 El problema", "📊 Modelos", "📅 Año a año", "🎯 Prueba ciega 2025",
-    "🏁 Metas", "🗺️ Candidatos 2026", "📄 Decisión",
-])
+tabs = st.tabs(
+    [
+        "🧭 El problema",
+        "📊 Modelos",
+        "📅 Año a año",
+        "🎯 Prueba ciega 2025",
+        "🏁 Metas",
+        "🗺️ Candidatos 2026",
+        "📄 Decisión",
+    ]
+)
 
 # ================================ Tab: el problema ==============================================
 with tabs[0]:
@@ -116,24 +141,56 @@ with tabs[1]:
         "en validación interna, acierto **tolerante** (celda o vecinas, mismo día o anterior)."
     )
     if not cv.empty:
-        corte = st.radio("Corte temporal", sorted(cv["corte"].unique()), horizontal=True,
-                         help="«día» usa 00–23 UTC; «12utc» solo 00–12 UTC del mismo día (anticipación)")
+        corte = str(
+            st.radio(
+                "Corte temporal",
+                sorted(cv["corte"].unique()),
+                horizontal=True,
+                help="«día» usa 00–23 UTC; «12utc» solo 00–12 UTC del mismo día (anticipación)",
+            )
+        )
         sub = cv[cv["corte"] == corte].copy()
-        show = sub[["modelo", "POD", "FAR", "dias_por_deteccion", "PR_AUC", "detectados",
-                    "eventos", "alertas"]].rename(columns={"dias_por_deteccion": "días/det"})
-        st.dataframe(show.style.format({
-            "POD": "{:.0%}", "FAR": "{:.0%}", "días/det": "{:.1f}", "PR_AUC": "{:.3f}"
-        }), use_container_width=True, hide_index=True)
-        st.success(f"**Elegido en «{corte}»: {elegido_de(corte)}** — "
-                   f"{read_text(f'decision_{corte}.md').split('razón')[0][-200:].strip() or 'ver pestaña Decisión'}")
-        fig = px.scatter(sub, x="FAR", y="POD", text="modelo", size="PR_AUC", color="modelo",
-                         labels={"FAR": "FAR", "POD": "POD"}, title=f"POD vs FAR — corte {corte}")
+        show = sub[
+            [
+                "modelo",
+                "POD",
+                "FAR",
+                "dias_por_deteccion",
+                "PR_AUC",
+                "detectados",
+                "eventos",
+                "alertas",
+            ]
+        ].rename(columns={"dias_por_deteccion": "días/det"})
+        st.dataframe(
+            show.style.format(
+                {"POD": "{:.0%}", "FAR": "{:.0%}", "días/det": "{:.1f}", "PR_AUC": "{:.3f}"}
+            ),
+            use_container_width=True,
+            hide_index=True,
+        )
+        st.success(
+            f"**Elegido en «{corte}»: {elegido_de(corte)}** — "
+            f"{read_text(f'decision_{corte}.md').split('razón')[0][-200:].strip() or 'ver pestaña Decisión'}"
+        )
+        fig = px.scatter(
+            sub,
+            x="FAR",
+            y="POD",
+            text="modelo",
+            size="PR_AUC",
+            color="modelo",
+            labels={"FAR": "FAR", "POD": "POD"},
+            title=f"POD vs FAR — corte {corte}",
+        )
         fig.add_hline(y=0.70, line_dash="dash", annotation_text="meta POD 70%")
         fig.add_vline(x=0.50, line_dash="dash", annotation_text="meta FAR 50%")
         fig.update_traces(textposition="top center")
         st.plotly_chart(fig, use_container_width=True)
-        st.caption("Tamaño = PR-AUC. El FAR se mide sobre días de evento y de control, así que "
-                   "sobrestima el real.")
+        st.caption(
+            "Tamaño = PR-AUC. El FAR se mide sobre días de evento y de control, así que "
+            "sobrestima el real."
+        )
 
 # ================================ Tab: año a año ================================================
 with tabs[2]:
@@ -147,12 +204,20 @@ with tabs[2]:
         tabla = piv[cols].fillna(0).astype(int)
         tabla.loc["Suma"] = tabla.sum()
         st.dataframe(tabla, use_container_width=True)
-        st.caption("Eventos detectados por año (acierto tolerante). La suma por año difiere del total "
-                   "agrupado, que junta las predicciones de todos los pliegues de validación.")
+        st.caption(
+            "Eventos detectados por año (acierto tolerante). La suma por año difiere del total "
+            "agrupado, que junta las predicciones de todos los pliegues de validación."
+        )
         bf2 = bf[bf["modelo"].isin(["M1", elegido_dia])]
-        fig = px.bar(bf2, x="anio", y="detectados", color="modelo", barmode="group",
-                     labels={"anio": "año", "detectados": "eventos detectados"},
-                     title="Eventos detectados por año: regla física vs modelo elegido")
+        fig = px.bar(
+            bf2,
+            x="anio",
+            y="detectados",
+            color="modelo",
+            barmode="group",
+            labels={"anio": "año", "detectados": "eventos detectados"},
+            title="Eventos detectados por año: regla física vs modelo elegido",
+        )
         st.plotly_chart(fig, use_container_width=True)
     else:
         st.warning("No hay cv_by_fold.csv todavía.")
@@ -163,28 +228,44 @@ with tabs[3]:
     bd, b12 = read_csv("blind_2025_dia.csv"), read_csv("blind_2025_12utc.csv")
     blind = pd.concat([bd, b12], ignore_index=True)
     if not blind.empty:
-        show = blind[["corte", "modelo", "POD", "FAR", "dias_por_deteccion", "detectados", "eventos"]]
-        st.dataframe(show.style.format({"POD": "{:.0%}", "FAR": "{:.0%}", "dias_por_deteccion": "{:.1f}"}),
-                     use_container_width=True, hide_index=True)
+        show = blind[
+            ["corte", "modelo", "POD", "FAR", "dias_por_deteccion", "detectados", "eventos"]
+        ]
+        st.dataframe(
+            show.style.format({"POD": "{:.0%}", "FAR": "{:.0%}", "dias_por_deteccion": "{:.1f}"}),
+            use_container_width=True,
+            hide_index=True,
+        )
         if not bd.empty:
             r = bd.iloc[0]
-            st.success(f"Con todo el día, {r['modelo']} detectó **{int(r['detectados'])} de "
-                       f"{int(r['eventos'])}** eventos de 2025 (POD {r['POD']:.0%}), sin reajuste.")
-        st.caption("Solo 2 eventos en 2025: confirma la dirección de la validación, no la mide con "
-                   "precisión.")
+            st.success(
+                f"Con todo el día, {r['modelo']} detectó **{int(r['detectados'])} de "
+                f"{int(r['eventos'])}** eventos de 2025 (POD {r['POD']:.0%}), sin reajuste."
+            )
+        st.caption(
+            "Solo 2 eventos en 2025: confirma la dirección de la validación, no la mide con "
+            "precisión."
+        )
 
 # ================================ Tab: metas ====================================================
 with tabs[4]:
     st.subheader("Dónde estamos frente a las metas comprometidas")
-    if r2 is not None:
+    if r2 is not None and r1 is not None:
         pod, far, dias = r2["POD"], r2["FAR"], r2["dias_por_deteccion"]
         c1, c2, c3 = st.columns(3)
         c1.metric("POD", f"{pod:.0%}", "meta ≥ 70% · " + ("✅ CUMPLE" if pod >= 0.70 else "❌ NO"))
-        c2.metric("FAR", f"{far:.0%}", "meta ≤ 50% · " + ("✅ CUMPLE" if far <= 0.50 else "❌ NO (sobrestimado)"),
-                  delta_color="off")
-        c3.metric("Días/detección", f"{dias:.1f}",
-                  "meta ≤ 2 · " + ("✅ CUMPLE" if dias <= 2 else "🟡 CERCA" if dias <= 3 else "❌ NO"),
-                  delta_color="off")
+        c2.metric(
+            "FAR",
+            f"{far:.0%}",
+            "meta ≤ 50% · " + ("✅ CUMPLE" if far <= 0.50 else "❌ NO (sobrestimado)"),
+            delta_color="off",
+        )
+        c3.metric(
+            "Días/detección",
+            f"{dias:.1f}",
+            "meta ≤ 2 · " + ("✅ CUMPLE" if dias <= 2 else "🟡 CERCA" if dias <= 3 else "❌ NO"),
+            delta_color="off",
+        )
         st.markdown(
             f"- **POD {pod:.0%}** ({int(r2['detectados'])}/{int(r2['eventos'])} eventos): cumple la meta de detección.\n"
             f"- **FAR {far:.0%}**: no cumple, pero el control es *sin etiqueta*, así que el FAR real es menor.\n"
@@ -206,11 +287,24 @@ with tabs[5]:
         c3.metric("Último día con ERA5", f"{cand['fecha'].max().date()}")
         solo = st.checkbox("Mostrar solo celdas-día en alerta", value=True)
         view = cand[cand["alerta"] == 1] if solo else cand
-        fig = px.scatter_geo(view.head(500), lat="lat", lon="lon", color="score", size="score",
-                             hover_data=["fecha"], color_continuous_scale="YlOrRd", scope="south america",
-                             title="Candidatos 2026 (color = puntaje)")
-        fig.update_geos(lataxis_range=[-44, -21], lonaxis_range=[-76, -68], resolution=50,
-                        showland=True, landcolor="rgb(240,240,235)")
+        fig = px.scatter_geo(
+            view.head(500),
+            lat="lat",
+            lon="lon",
+            color="score",
+            size="score",
+            hover_data=["fecha"],
+            color_continuous_scale="YlOrRd",
+            scope="south america",
+            title="Candidatos 2026 (color = puntaje)",
+        )
+        fig.update_geos(
+            lataxis_range=[-44, -21],
+            lonaxis_range=[-76, -68],
+            resolution=50,
+            showland=True,
+            landcolor="rgb(240,240,235)",
+        )
         st.plotly_chart(fig, use_container_width=True)
         st.warning(
             "⚠️ **Por revisar:** varios candidatos de mayor puntaje caen cerca de la cordillera, donde "
@@ -219,7 +313,9 @@ with tabs[5]:
         )
         st.markdown("**Top 15 candidatos por puntaje** (con las variables que más contribuyen)")
         top = view.sort_values("score", ascending=False).head(15)
-        cols = [c for c in ["fecha", "lat", "lon", "score", "top1", "top2", "top3"] if c in top.columns]
+        cols = [
+            c for c in ["fecha", "lat", "lon", "score", "top1", "top2", "top3"] if c in top.columns
+        ]
         st.dataframe(top[cols], use_container_width=True, hide_index=True)
     else:
         st.warning("No se encontraron candidatos 2026.")
@@ -234,5 +330,7 @@ with tabs[6]:
     st.markdown(read_text("resumen_pitch.md") or "_No disponible._")
 
 st.divider()
-st.caption("Visor de datos y caso 2019: puerto 8501. Esta app de resultados: puerto 8502. "
-           "Código: scripts/model/ · salidas: data/outputs/. Hackatón CR2 · AWS EC2 Graviton2.")
+st.caption(
+    "Visor de datos y caso 2019: puerto 8501. Esta app de resultados: puerto 8502. "
+    "Código: scripts/model/ · salidas: data/outputs/. Hackatón CR2 · AWS EC2 Graviton2."
+)

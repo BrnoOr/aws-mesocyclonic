@@ -7,6 +7,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import xarray as xr
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts" / "dataset"))
@@ -155,10 +156,8 @@ class NoLeakageTest(unittest.TestCase):
 class SummarizeGoesTest(unittest.TestCase):
     """``summarize_goes`` resume la banda térmica sobre cada celda ERA5."""
 
-    def _dataset(self) -> object:
+    def _dataset(self) -> xr.Dataset:
         """GOES sintético: 2 pasos de 10 min en una grilla fina, con un tope frío que se enfría."""
-        import xarray as xr
-
         glat = np.array([-37.0, -37.1, -37.2])
         glon = np.array([-72.0, -72.1])
         prev = np.full((3, 2), 260.0)

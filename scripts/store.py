@@ -107,7 +107,7 @@ class Store:
     def glob(self, pattern: str) -> list["Store"]:
         """Rutas hijas que calzan con ``pattern`` (glob relativo), ordenadas por nombre."""
         sep = "/" if self.is_s3 else os.sep
-        hits = self.fs.glob(f"{self._fspath()}{sep}{pattern}")
+        hits = [str(h) for h in self.fs.glob(f"{self._fspath()}{sep}{pattern}")]
         if self.is_s3:
             return [Store(f"{S3_SCHEME}{h.lstrip('/')}", self.fs, is_s3=True) for h in sorted(hits)]
         return [Store(str(Path(h)), self.fs, is_s3=False) for h in sorted(hits)]
@@ -149,7 +149,7 @@ class Store:
         En local pasa por un ``.tmp`` y renombra, para no dejar un archivo a medias. En S3 arma el
         NetCDF en un temporal local y lo sube como un solo objeto.
         """
-        enc = {v: COMPRESSION for v in ds.data_vars} if encoding is None else encoding
+        enc = dict.fromkeys(ds.data_vars, COMPRESSION) if encoding is None else encoding
         if self.is_s3:
             with tempfile.NamedTemporaryFile(suffix=".nc", delete=False) as tmp:
                 tmp_path = Path(tmp.name)

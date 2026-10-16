@@ -61,7 +61,7 @@ ignore = [
 [tool.ruff.lint.isort]
 # scripts/ no es un paquete: los puntos de entrada añaden scripts/ a sys.path para importar common;
 # viewer_app se importa desde scripts/viewer/.
-known-first-party = ["common", "viewer_app"]
+known-first-party = ["common", "store", "viewer_app"]
 
 [tool.pyright]
 include = ["scripts"]

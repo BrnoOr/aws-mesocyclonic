@@ -245,8 +245,8 @@ footer.site p, footer.site li { overflow-wrap: anywhere; }
         <a class="btn btn-ghost" href="#integracion">Cómo se integra</a>
       </div>
       <div class="proof">
-        <div><b>2×</b><span>los tornados que detecta la regla física, con la misma área marcada</span></div>
-        <div><b>5 de 7</b><span>tornados de 2024–2025 que el modelo nunca vio</span></div>
+        <div><b>×57</b><span>más probable encontrar un evento donde Vórtice avisa que en una celda al azar</span></div>
+        <div><b>79,5 %</b><span>de las celdas con evento registrado las detecta el modelo</span></div>
         <div><b>1 API</b><span>hoy con checkpoint local, mañana en Amazon SageMaker</span></div>
       </div>
       <p class="credit">Los Ángeles, Biobío, 30 de mayo de 2019. Foto publicada en <a href="https://www.meteored.cl/noticias/ciencia/el-dia-que-marco-el-antes-y-el-despues-de-los-tornados-en-chile.html" target="_blank" rel="noopener">Vicencio Veloso (2022), Meteored</a>; la fuente no indica quién la tomó.</p>
@@ -365,27 +365,28 @@ footer.site p, footer.site li { overflow-wrap: anywhere; }
   <section id="evidencia">
     <div class="wrap">
       <div class="section-head">
-        <p class="eyebrow">Evidencia · pronóstico Pangu-Weather</p>
-        <h2>Con la misma área marcada, Vórtice detecta el doble que la regla física</h2>
-        <p class="lede">Aplicamos el modelo al pronóstico de Pangu-Weather para 25 tornados y trombas de 2021 a 2025. Cada evento se puntuó con un modelo que no vio su año; los 7 de 2024–2025 nunca se usaron para entrenar.</p>
+        <p class="eyebrow">Evidencia · validación por celda</p>
+        <h2>El modelo concentra los eventos en una fracción diminuta del dominio</h2>
+        <p class="lede">Validación cruzada del modelo Vórtice (MLP de <em>PU learning</em>) por celda-hora: 300 249 celdas, 249 marcadas como evento sobre 7 tornados y trombas, en 3 particiones sin fuga. Los eventos son rarísimos —0,083 % de las celdas—, así que la medida que importa es cuánto sube la densidad de aciertos donde el modelo avisa.</p>
       </div>
       <div class="chart-wrap">
-        <svg id="aiwp-chart" viewBox="0 0 760 300" role="img" aria-labelledby="aiwp-title aiwp-desc">
-          <title id="aiwp-title">Eventos detectados por Vórtice y por la regla física, con la misma área marcada</title>
-          <desc id="aiwp-desc">Con 1,07 % del área: Vórtice 40 %, regla A 20 %. Con 10,74 % del área: Vórtice 80 %, regla B 32 %. La banda gris es lo que capturarían marcas al azar con la misma huella.</desc>
+        <svg id="aiwp-chart" viewBox="0 0 760 220" role="img" aria-labelledby="aiwp-title aiwp-desc">
+          <title id="aiwp-title">Densidad de eventos: al azar frente a las celdas que marca Vórtice</title>
+          <desc id="aiwp-desc">En una celda al azar la probabilidad de evento es 0,083 %. Entre las celdas que marca Vórtice sube a 4,76 %, unas 57 veces más.</desc>
         </svg>
       </div>
-      <p class="note" style="margin-top:12px;max-width:var(--measure)">Detectado: una celda marcada a 50 km o menos y a ±6 h del evento. La banda gris es la detección que daría el mismo patrón de marcas al azar (5–95 %) y la raya, su media. Vórtice queda +17 puntos sobre el azar; las reglas, +2 a +4 (p ≈ 0,06).</p>
+      <p class="note" style="margin-top:12px;max-width:var(--measure)">Cada barra es la fracción de celdas con evento registrado. Al azar: 0,083 % (249 de 300 249). Entre las celdas que Vórtice marca (umbral 0,5): 4,76 % (198 de 4 158), unas 57 veces más densa. «Sin evento registrado» no equivale a «no ocurrió»: parte de esas 3 960 celdas marcadas sin registro pueden ser eventos nunca vistos.</p>
       <div class="kpis">
-        <article class="kpi"><h3>Detección de tornados nunca vistos</h3><b>5 de 7</b><span class="pill ok">Cumple la meta, con pocos casos</span>
-          <dl><dt>Vórtice</dt><dd>71 % [36–92 %]</dd><dt>Meta CR2</dt><dd>≥ 70 %</dd><dt>Base</dt><dd>STP 0 de 7</dd></dl></article>
-        <article class="kpi"><h3>Falsas alarmas por día</h3><b>≈ 60 %</b><span class="pill mid">Mejora la base, no llega a la meta</span>
-          <dl><dt>Vórtice</dt><dd>≈ 60 % [32–68 %]</dd><dt>Meta CR2</dt><dd>≤ 50 %</dd><dt>Base</dt><dd>≈ 70 %</dd></dl></article>
-        <article class="kpi"><h3>Días de alerta por acierto</h3><b>≈ 2,5</b><span class="pill mid">Cerca de la meta</span>
-          <dl><dt>Vórtice</dt><dd>≈ 2,5</dd><dt>Meta CR2</dt><dd>≤ 2</dd><dt>Base</dt><dd>≈ 4</dd></dl></article>
+        <article class="kpi"><h3>Detección por celda (POD)</h3><b>79,5 %</b><span class="pill ok">198 de 249 celdas de evento</span>
+          <dl><dt>Vórtice</dt><dd>79,5 %</dd><dt>Umbral</dt><dd>0,5</dd><dt>Falla</dt><dd>51 omisiones</dd></dl></article>
+        <article class="kpi"><h3>Concentración (AUC-PR)</h3><b>0,087</b><span class="pill ok">×105 sobre la tasa base</span>
+          <dl><dt>Vórtice</dt><dd>0,087</dd><dt>Base (azar)</dt><dd>0,00083</dd><dt>Precisión</dt><dd>4,76 %</dd></dl></article>
+        <article class="kpi"><h3>Calibración (Brier)</h3><b>0,012</b><span class="pill mid">Menor es mejor; sin calibrar aún</span>
+          <dl><dt>Vórtice</dt><dd>0,012</dd><dt>Avisos</dt><dd>4 158 celdas</dd><dt>Falsos</dt><dd>3 960 sin registro</dd></dl></article>
       </div>
     </div>
   </section>
+
 
   <section id="integracion">
     <div class="wrap">
@@ -650,36 +651,29 @@ footer.site p, footer.site li { overflow-wrap: anywhere; }
      .catch(err => { console.error(err); $("console-foot").textContent = `No se pudieron cargar los puntajes de ${fmtDay(day)}.`; });
   }
 
-  // ---- Gráfico de evidencia ----
+  // ---- Gráfico de evidencia: densidad de eventos (azar vs celdas marcadas por el modelo) ----
   function drawChart() {
     const svg = $("aiwp-chart"), NS = "http://www.w3.org/2000/svg";
-    const groups = [
-      { title: "Área de la regla A · 1,07 % del dominio", rows: [
-        { label: "Vórtice", cls: "bar-model", obs: 40, k: "10 de 25", nul: [15, 33], mean: 22 },
-        { label: "Regla A (cizalle, SRH y CAPE)", cls: "bar-rule", obs: 20, k: "5 de 25", nul: [11, 24], mean: 16 } ] },
-      { title: "Área de la regla B · 10,74 % del dominio", rows: [
-        { label: "Vórtice", cls: "bar-model", obs: 80, k: "20 de 25", nul: [52, 73], mean: 63 },
-        { label: "Regla B (cizalle y SRH)", cls: "bar-rule", obs: 32, k: "8 de 25", nul: [20, 41], mean: 30 } ] } ];
-    const x0 = 230, x1 = 690, sx = v => x0 + (x1 - x0) * v / 100;
+    // Fracción de celdas con evento registrado (de data/model/metrics.json).
+    const bars = [
+      { label: "Celda al azar (tasa base)", cls: "bar-rule", val: 0.083, k: "249 de 300 249" },
+      { label: "Celda marcada por Vórtice", cls: "bar-model", val: 4.76, k: "198 de 4 158" },
+    ];
+    const x0 = 230, x1 = 690, vmax = 5, sx = v => x0 + (x1 - x0) * v / vmax;
     const el = (tag, attrs, text) => { const e = document.createElementNS(NS, tag);
       Object.entries(attrs).forEach(([a, v]) => e.setAttribute(a, v)); if (text) e.textContent = text; svg.appendChild(e); return e; };
-    [0, 25, 50, 75, 100].forEach(v => { el("line", { x1: sx(v), x2: sx(v), y1: 14, y2: 262, class: "grid" });
-      el("text", { x: sx(v), y: 284, "text-anchor": "middle", "font-size": 12 }, `${v} %`); });
-    let y = 26;
-    groups.forEach(g => {
-      el("text", { x: 0, y, "font-size": 12.5, class: "lbl" }, g.title); y += 18;
-      g.rows.forEach(r => {
-        el("text", { x: 0, y: y + 22, "font-size": 13 }, r.label);
-        el("rect", { x: sx(r.nul[0]), y: y + 4, width: sx(r.nul[1]) - sx(r.nul[0]), height: 28, class: "null", rx: 2 });
-        el("rect", { x: x0, y: y + 11, width: sx(r.obs) - x0, height: 14, class: r.cls, rx: 2 });
-        el("line", { x1: sx(r.mean), x2: sx(r.mean), y1: y + 2, y2: y + 34, class: "nulltick", "stroke-width": 2 });
-        const xt = sx(Math.max(r.obs, r.nul[1])) + 8;
-        el("text", { x: xt, y: y + 23, "font-size": 13, class: "val" }, `${r.obs} %`);
-        el("text", { x: xt + 44, y: y + 23, "font-size": 12 }, r.k);
-        y += 40;
-      });
-      y += 18;
+    [0, 1, 2, 3, 4, 5].forEach(v => { el("line", { x1: sx(v), x2: sx(v), y1: 14, y2: 150, class: "grid" });
+      el("text", { x: sx(v), y: 172, "text-anchor": "middle", "font-size": 12 }, `${v} %`); });
+    let y = 34;
+    bars.forEach(b => {
+      el("text", { x: 0, y: y + 22, "font-size": 13 }, b.label);
+      el("rect", { x: x0, y: y + 8, width: Math.max(sx(b.val) - x0, 2), height: 22, class: b.cls, rx: 2 });
+      const xt = sx(b.val) + 10;
+      el("text", { x: xt, y: y + 24, "font-size": 13, class: "val" }, `${b.val.toLocaleString("es-CL")} %`);
+      el("text", { x: xt + 70, y: y + 24, "font-size": 12 }, b.k);
+      y += 56;
     });
+    el("text", { x: x0, y: 200, "font-size": 12.5, class: "lbl" }, "Donde Vórtice avisa, un evento es unas 57 veces más probable que al azar.");
   }
 
   drawChart();

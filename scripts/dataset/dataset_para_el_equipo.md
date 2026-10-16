@@ -108,9 +108,10 @@ Carga una partición con un filtro sencillo:
 
 ```python
 import pandas as pd
+
 df = pd.read_parquet("data/dataset/south-central-austral/dataset_lead0h.parquet")
 train = df[df.partition == "train"]
-val   = df[df.partition == "val"]
+val = df[df.partition == "val"]
 ```
 
 ## 4. Cuánto tarda crearlo

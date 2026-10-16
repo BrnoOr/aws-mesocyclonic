@@ -13,7 +13,6 @@ día anterior (tolerancia configurable). Las métricas:
 El FAR se mide sobre días de evento y de control, así que sobrestima el real (se anota en el reporte).
 """
 
-import numpy as np
 import pandas as pd
 from sklearn.metrics import average_precision_score
 
@@ -68,7 +67,7 @@ def tolerant_metrics(
         cells = _cells_near(e["lat"], e["lon"], vecindad, res)
         for dd in range(ventana_dias[0], ventana_dias[1] + 1):
             fday = (e["fecha"] + pd.Timedelta(days=dd)).normalize()
-            for (la, lo) in cells:
+            for la, lo in cells:
                 ev_cells_days.add((fday, la, lo))
     n_alertas = len(alert_set)
     falsas = sum(1 for a in alert_set if a not in ev_cells_days)

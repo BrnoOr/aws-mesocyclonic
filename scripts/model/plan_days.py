@@ -23,10 +23,10 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import common  # noqa: E402
-
 import features as features_mod  # noqa: E402
 import labels as labels_mod  # noqa: E402
+
+import common  # noqa: E402
 
 
 def season_days(year: int, meses: tuple[int, int]) -> list[dt.date]:
@@ -35,7 +35,7 @@ def season_days(year: int, meses: tuple[int, int]) -> list[dt.date]:
     start = dt.date(year, m0, 1)
     end = dt.date(year, m1, 1)
     # último día del mes m1
-    end = (dt.date(year + (m1 == 12), (m1 % 12) + 1, 1) - dt.timedelta(days=1))
+    end = dt.date(year + (m1 == 12), (m1 % 12) + 1, 1) - dt.timedelta(days=1)
     return [start + dt.timedelta(days=i) for i in range((end - start).days + 1)]
 
 
@@ -54,7 +54,9 @@ def main() -> None:
     meses = tuple(cfg["dominio"]["temporada"])
     anios = cfg["dominio"]["anios_entrenamiento"]
 
-    events = labels_mod.load_events(data_store.child("tornados_chile.xlsx"), cfg["dominio"]["resolucion_grados"])
+    events = labels_mod.load_events(
+        data_store.child("tornados_chile.xlsx"), cfg["dominio"]["resolucion_grados"]
+    )
     ev_season = labels_mod.events_in_range(events, [*anios, 2025], meses)
     event_days = sorted({pd.Timestamp(f).date() for f in ev_season["fecha"]})
 

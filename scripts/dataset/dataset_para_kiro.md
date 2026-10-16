@@ -88,10 +88,27 @@ import pandas as pd
 df = pd.read_parquet("data/dataset/south-central-austral/dataset_lead0h.parquet")
 
 FEATURES = [
-    "shear_01", "shear_03", "shear_06", "srh_01", "srh_03", "lcl",
-    "gamma_03", "gamma_75", "vgp_01", "stp_lm", "sherbs3",
-    "u_06", "v_06", "u_lm", "v_lm", "u_rm", "v_rm", "sfc_height",
-    "goes_bt_min", "goes_bt_mean", "goes_bt_trend",
+    "shear_01",
+    "shear_03",
+    "shear_06",
+    "srh_01",
+    "srh_03",
+    "lcl",
+    "gamma_03",
+    "gamma_75",
+    "vgp_01",
+    "stp_lm",
+    "sherbs3",
+    "u_06",
+    "v_06",
+    "u_lm",
+    "v_lm",
+    "u_rm",
+    "v_rm",
+    "sfc_height",
+    "goes_bt_min",
+    "goes_bt_mean",
+    "goes_bt_trend",
 ]
 
 train = df[df.partition == "train"]

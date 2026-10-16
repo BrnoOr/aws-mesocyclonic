@@ -12,6 +12,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts" / "viewer"))
 
+from store import Store  # noqa: E402
 from viewer_app import data  # noqa: E402
 
 
@@ -44,7 +45,7 @@ class CatalogTest(unittest.TestCase):
         """Si falta el catálogo y luego se descarga, la siguiente lectura lo ve (no queda vacío en caché)."""
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "tornados_chile.xlsx"
-            with patch.object(data, "CATALOG", path):
+            with patch.object(data, "CATALOG", Store.at(path)):
                 self.assertTrue(data.catalog().empty)
                 pd.DataFrame(
                     {

@@ -65,8 +65,10 @@ def hourly_indices(idx: xr.Dataset, sfc: xr.Dataset | None) -> xr.Dataset:
             out[name] = xr.full_like(idx[next(iter(idx.data_vars))], np.nan)
 
     # SHERBE aproximado (ver nota arriba): misma familia HSLC que SHERBS3, documentado como aprox.
-    out["sherbe"] = out["sherbs3"].copy() if "sherbs3" in out else xr.full_like(
-        idx[next(iter(idx.data_vars))], np.nan
+    out["sherbe"] = (
+        out["sherbs3"].copy()
+        if "sherbs3" in out
+        else xr.full_like(idx[next(iter(idx.data_vars))], np.nan)
     )
 
     # CAPE desde era5_sfc, alineado a la grilla de idx por tiempo/lat/lon.

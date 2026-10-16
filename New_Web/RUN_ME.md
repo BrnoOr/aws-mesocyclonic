@@ -7,6 +7,11 @@ compartir). Incluye el código de la app, los módulos que importa, los artefact
 ## Estructura
 
 ```
+site/                            sitio de producto: página con la consola (site/DEPLOY.md)
+scripts/api/                     API de inferencia (FastAPI) que usa la consola; motor local o SageMaker
+sagemaker/                       checkpoint empaquetado para un endpoint de SageMaker (paso futuro)
+tests/                           pruebas de la API y del contrato con SageMaker
+landing/                         página del proyecto anterior (sin consola; app aparte en /app/)
 scripts/webapp/model_app.py      la app Streamlit (5 páginas: resumen, mapa de ejemplo, curva, KPIs, AIWP)
 scripts/webapp/README.md         guía de despliegue (Streamlit Cloud / EC2+SSM / Docker)
 scripts/model/                   módulos que la app importa (model_features, metrics, kpi, …)

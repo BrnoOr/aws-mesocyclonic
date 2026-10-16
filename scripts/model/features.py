@@ -16,7 +16,6 @@ Uso::
     uv run python scripts/model/features.py --corte 12utc --start 2018-04-01 --end 2024-09-30
 """
 
-import argparse
 import sys
 from pathlib import Path
 
@@ -27,10 +26,10 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import common  # noqa: E402
-
 import indices as indices_mod  # noqa: E402
 import labels as labels_mod  # noqa: E402
+
+import common  # noqa: E402
 
 CONFIG = Path(__file__).resolve().parent / "config" / "model_selection.yaml"
 
@@ -92,7 +91,7 @@ def aggregate_cell_day(ds: xr.Dataset, cfg: dict) -> pd.DataFrame:
         imax = da.max("time", skipna=True)
         # Tendencia: máximo aumento en 6 h (hacia atrás).
         if n_horas > 6:
-            itend = (da.isel(time=slice(6, None)).values - da.isel(time=slice(None, -6)).values)
+            itend = da.isel(time=slice(6, None)).values - da.isel(time=slice(None, -6)).values
             itend = xr.DataArray(np.nanmax(itend, axis=0), coords=imax.coords, dims=imax.dims)
         elif n_horas > 1:
             itend = (da - da.isel(time=0)).max("time", skipna=True)
@@ -135,7 +134,9 @@ def build(corte: str, days: list, cfg: dict, base: common.Store) -> pd.DataFrame
         n_esperadas = tau + 1
         feat["completo"] = feat["n_horas"] >= 0.75 * n_esperadas
         frames.append(feat)
-        print(f"  {day}: {len(feat)} celdas, {ds_cut.sizes['time']} horas (corte {corte})", flush=True)
+        print(
+            f"  {day}: {len(feat)} celdas, {ds_cut.sizes['time']} horas (corte {corte})", flush=True
+        )
     if not frames:
         return pd.DataFrame()
     out = pd.concat(frames, ignore_index=True)
@@ -178,7 +179,9 @@ def main() -> None:
     if tbl.empty:
         raise SystemExit("no se armó ninguna fila; genera primero los índices (process_era5.py)")
 
-    events = labels_mod.load_events(common.DATA.child("tornados_chile.xlsx"), cfg["dominio"]["resolucion_grados"])
+    events = labels_mod.load_events(
+        common.DATA.child("tornados_chile.xlsx"), cfg["dominio"]["resolucion_grados"]
+    )
     tbl = labels_mod.label_table(tbl, events)
 
     out_file = common.DATA.child("tables", f"features_{a.corte}.parquet")

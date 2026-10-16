@@ -24,12 +24,12 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import common  # noqa: E402
-
 import cv as cv_mod  # noqa: E402
 import features as features_mod  # noqa: E402
 import labels as labels_mod  # noqa: E402
 import models as models_mod  # noqa: E402
+
+import common  # noqa: E402
 
 
 def elegido_de_decision(data_store: common.Store, corte: str) -> str:
@@ -37,7 +37,11 @@ def elegido_de_decision(data_store: common.Store, corte: str) -> str:
     f = data_store.child("outputs", f"decision_{corte}.md")
     if not f.exists():
         return "M1"
-    txt = f.fs.open(f.root).read().decode() if f.is_s3 else Path(f.root).read_text(encoding="utf-8")
+    txt = (
+        str(f.fs.read_text(f.root, encoding="utf-8"))
+        if f.is_s3
+        else Path(f.root).read_text(encoding="utf-8")
+    )
     m = re.search(r"Modelo elegido:\s*\*\*(M\d)\*\*", txt)
     return m.group(1) if m else "M1"
 
@@ -46,16 +50,20 @@ def read_features(data_store: common.Store, corte: str) -> pd.DataFrame:
     """Lee features_<corte>.parquet (local o S3)."""
     f = data_store.child("tables", f"features_{corte}.parquet")
     assert f.exists(), f"falta {f.root}"
-    return pd.read_parquet(f.fs.open(f.root, "rb") if f.is_s3 else f.root)
+    return pd.read_parquet(f.root, storage_options={"anon": False} if f.is_s3 else None)
 
 
 def train_until(data_store: common.Store, corte: str, modelo: str, until: int, cfg: dict) -> dict:
     """Entrena el modelo con temporada hasta ``until`` y calcula su umbral (POD≥objetivo interno)."""
     df = read_features(data_store, corte)
     m0, m1 = cfg["dominio"]["temporada"]
-    df = df[df["completo"] & (df["mes"] >= m0) & (df["mes"] <= m1) & (df["anio"] <= until)].reset_index(drop=True)
+    df = df[
+        df["completo"] & (df["mes"] >= m0) & (df["mes"] <= m1) & (df["anio"] <= until)
+    ].reset_index(drop=True)
     cols = [c for c in df.columns if c.endswith(("_max", "_tend6", "_pers", "_max3x3"))]
-    events = labels_mod.load_events(data_store.child("tornados_chile.xlsx"), cfg["dominio"]["resolucion_grados"])
+    events = labels_mod.load_events(
+        data_store.child("tornados_chile.xlsx"), cfg["dominio"]["resolucion_grados"]
+    )
     ev = labels_mod.events_in_range(events, sorted(df["anio"].unique()), (m0, m1))
 
     # Umbral: validación interna año-fuera sobre los datos de entrenamiento.
@@ -63,15 +71,26 @@ def train_until(data_store: common.Store, corte: str, modelo: str, until: int, c
     thr = cv_mod.pick_threshold(oof[~np.isnan(oof)], df[~np.isnan(oof)], ev, cfg)
 
     model = models_mod.build_model(modelo, cfg, cols).fit(df, df["y"].to_numpy())
-    return {"model": model, "umbral": thr, "modelo": modelo, "corte": corte,
-            "cols": cols, "until": until, "config_version": cfg["version"]}
+    return {
+        "model": model,
+        "umbral": thr,
+        "modelo": modelo,
+        "corte": corte,
+        "cols": cols,
+        "until": until,
+        "config_version": cfg["version"],
+    }
 
 
 def main() -> None:
     """Punto de entrada: entrena y guarda modelo_<corte>.pkl."""
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--until", type=int, required=True, help="último año de entrenamiento (inclusive)")
-    p.add_argument("--modelo", default="elegido", help="M0..M4 o 'elegido' (lee decision_<corte>.md)")
+    p.add_argument(
+        "--until", type=int, required=True, help="último año de entrenamiento (inclusive)"
+    )
+    p.add_argument(
+        "--modelo", default="elegido", help="M0..M4 o 'elegido' (lee decision_<corte>.md)"
+    )
     p.add_argument("--corte", choices=["dia", "12utc", "00utc"], default="dia")
     p.add_argument("--data-root", default=None)
     a = p.parse_args()
@@ -87,13 +106,14 @@ def main() -> None:
     data_store.child("outputs").mkdir()
     blob = pickle.dumps(payload)
     if out.is_s3:
-        with out.fs.open(out.root, "wb") as f:
-            f.write(blob)
+        out.fs.pipe_file(out.root, blob)
     else:
         Path(out.root).parent.mkdir(parents=True, exist_ok=True)
         Path(out.root).write_bytes(blob)
-    print(f"entrenado {modelo} ({a.corte}) hasta {a.until}, umbral={payload['umbral']:.4f} -> {out.root}",
-          flush=True)
+    print(
+        f"entrenado {modelo} ({a.corte}) hasta {a.until}, umbral={payload['umbral']:.4f} -> {out.root}",
+        flush=True,
+    )
 
 
 if __name__ == "__main__":

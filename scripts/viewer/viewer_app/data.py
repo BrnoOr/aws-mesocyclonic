@@ -7,7 +7,6 @@ Todo lo que lee disco pasa por aquí y se cachea con Streamlit. Las listas de ar
 import datetime as dt
 import re
 from dataclasses import dataclass
-from pathlib import Path
 
 import geopandas as gpd
 import numpy as np

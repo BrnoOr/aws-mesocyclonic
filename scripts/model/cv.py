@@ -24,12 +24,12 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import common  # noqa: E402
-
 import features as features_mod  # noqa: E402
 import kpis as kpis_mod  # noqa: E402
 import labels as labels_mod  # noqa: E402
 import models as models_mod  # noqa: E402
+
+import common  # noqa: E402
 
 MODEL_NAMES = ["M0", "M1", "M2", "M3", "M4"]
 
@@ -69,7 +69,7 @@ def run_cut(corte: str, cfg: dict, data_store: common.Store) -> tuple[pd.DataFra
     feats_file = data_store.child("tables", f"features_{corte}.parquet")
     assert feats_file.exists(), f"falta {feats_file.root} (corre features.py --corte {corte})"
     if feats_file.is_s3:
-        df = pd.read_parquet(feats_file.fs.open(feats_file.root, "rb"))
+        df = pd.read_parquet(feats_file.root, storage_options={"anon": False})
     else:
         df = pd.read_parquet(feats_file.root)
     anios = cfg["dominio"]["anios_entrenamiento"]
@@ -102,19 +102,27 @@ def run_cut(corte: str, cfg: dict, data_store: common.Store) -> tuple[pd.DataFra
             oof_pred[model_name][va_mask] = s
             ev_va = labels_mod.events_in_range(events_all, [yv], tuple(cfg["dominio"]["temporada"]))
             tmp = va.assign(alerta=(s >= thr).astype(int), score=s)
-            k = kpis_mod.tolerant_metrics(tmp, ev_va, tol["vecindad_celdas"], tuple(tol["ventana_dias"]))
+            k = kpis_mod.tolerant_metrics(
+                tmp, ev_va, tol["vecindad_celdas"], tuple(tol["ventana_dias"])
+            )
             by_fold.append({"corte": corte, "modelo": model_name, "anio": yv, "umbral": thr, **k})
 
     # Métricas agrupadas sobre los 7 años (predicciones fuera de pliegue juntas).
     report = []
-    events_season = labels_mod.events_in_range(events_all, anios, tuple(cfg["dominio"]["temporada"]))
-    agg_threshold = {m: float(np.nanmedian(list(thresholds[m].values()) or [0.0])) for m in MODEL_NAMES}
+    events_season = labels_mod.events_in_range(
+        events_all, anios, tuple(cfg["dominio"]["temporada"])
+    )
+    agg_threshold = {
+        m: float(np.nanmedian(list(thresholds[m].values()) or [0.0])) for m in MODEL_NAMES
+    }
     for model_name in MODEL_NAMES:
         s = oof_pred[model_name]
         mask = ~np.isnan(s)
         thr = agg_threshold[model_name]
         tmp = df[mask].assign(alerta=(s[mask] >= thr).astype(int), score=s[mask])
-        k = kpis_mod.tolerant_metrics(tmp, events_season, tol["vecindad_celdas"], tuple(tol["ventana_dias"]))
+        k = kpis_mod.tolerant_metrics(
+            tmp, events_season, tol["vecindad_celdas"], tuple(tol["ventana_dias"])
+        )
         report.append({"corte": corte, "modelo": model_name, "umbral": thr, **k})
 
     rep = pd.DataFrame(report)
@@ -143,7 +151,9 @@ def bootstrap_vs_m1(
         if m.sum() == 0:
             return {"POD": np.nan, "FAR": np.nan, "PR_AUC": np.nan}
         tmp = sub[m].assign(alerta=(s[m] >= thr[model_name]).astype(int), score=s[m])
-        return kpis_mod.tolerant_metrics(tmp, ev, tol["vecindad_celdas"], tuple(tol["ventana_dias"]))
+        return kpis_mod.tolerant_metrics(
+            tmp, ev, tol["vecindad_celdas"], tuple(tol["ventana_dias"])
+        )
 
     df_idx = df.reset_index(drop=True)
     for _ in range(n_rep):
@@ -160,14 +170,16 @@ def bootstrap_vs_m1(
     out = []
     for model_name in MODEL_NAMES:
         r = rows[model_name]
-        out.append({
-            "modelo": model_name,
-            "dFAR_vs_M1": float(np.nanmean(r["dFAR"])),
-            "dFAR_se": float(np.nanstd(r["dFAR"])),
-            "dPOD_vs_M1": float(np.nanmean(r["dPOD"])),
-            "dPR_AUC_vs_M1": float(np.nanmean(r["dPR_AUC"])),
-            "dPR_AUC_se": float(np.nanstd(r["dPR_AUC"])),
-        })
+        out.append(
+            {
+                "modelo": model_name,
+                "dFAR_vs_M1": float(np.nanmean(r["dFAR"])),
+                "dFAR_se": float(np.nanstd(r["dFAR"])),
+                "dPOD_vs_M1": float(np.nanmean(r["dPOD"])),
+                "dPR_AUC_vs_M1": float(np.nanmean(r["dPR_AUC"])),
+                "dPR_AUC_se": float(np.nanstd(r["dPR_AUC"])),
+            }
+        )
     return pd.DataFrame(out)
 
 

@@ -8,9 +8,9 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import common  # noqa: E402
-
 import features as features_mod  # noqa: E402
+
+import common  # noqa: E402
 
 
 def _read_csv(store: common.Store) -> pd.DataFrame:
@@ -23,7 +23,11 @@ def _elegido(store: common.Store, corte: str) -> str:
     import re
 
     f = store.child("outputs", f"decision_{corte}.md")
-    txt = f.fs.open(f.root).read().decode() if f.is_s3 else Path(f.root).read_text(encoding="utf-8")
+    txt = (
+        str(f.fs.read_text(f.root, encoding="utf-8"))
+        if f.is_s3
+        else Path(f.root).read_text(encoding="utf-8")
+    )
     m = re.search(r"Modelo elegido:\s*\*\*(M\d)\*\*", txt)
     return m.group(1) if m else "M1"
 
@@ -73,9 +77,13 @@ def main() -> None:
             )
 
     # Prueba ciega 2025.
-    lines += ["", "## Prueba ciega 2025 (una sola evaluación, sin reajuste)", "",
-              "| Corte | Modelo | POD | FAR | Días/detección | Detectados |",
-              "| --- | --- | --- | --- | --- | --- |"]
+    lines += [
+        "",
+        "## Prueba ciega 2025 (una sola evaluación, sin reajuste)",
+        "",
+        "| Corte | Modelo | POD | FAR | Días/detección | Detectados |",
+        "| --- | --- | --- | --- | --- | --- |",
+    ]
     for corte in ["dia", "12utc"]:
         f = ds.child("outputs", f"blind_2025_{corte}.csv")
         if not f.exists():
@@ -96,11 +104,15 @@ def main() -> None:
         alertas = int(c["alerta"].sum())
         ult = c["ultimo_dia_era5"].iloc[0] if "ultimo_dia_era5" in c.columns else "?"
         top = c.sort_values("score", ascending=False).head(5)
-        lines.append(f"- **Corte {corte} ({c['modelo'].iloc[0]}):** {len(c)} celdas-día puntuadas, "
-                     f"{alertas} alertas; ERA5 hasta {ult}.")
+        lines.append(
+            f"- **Corte {corte} ({c['modelo'].iloc[0]}):** {len(c)} celdas-día puntuadas, "
+            f"{alertas} alertas; ERA5 hasta {ult}."
+        )
         lines.append("  Top 5 candidatos (fecha, lat, lon, score):")
         for _, r in top.iterrows():
-            lines.append(f"    - {r['fecha']} ({r['lat']:.1f}, {r['lon']:.1f}) score={r['score']:.3f}")
+            lines.append(
+                f"    - {r['fecha']} ({r['lat']:.1f}, {r['lon']:.1f}) score={r['score']:.3f}"
+            )
 
     lines += [
         "",

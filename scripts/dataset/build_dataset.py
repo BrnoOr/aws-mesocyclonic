@@ -248,11 +248,15 @@ def main() -> None:
     p = common.parser(__doc__, "los días")
     a = p.parse_args()
     reg = common.region_of(a)
-    base = common.CROPS / reg.name
-    out_dir = common.DATA / "dataset" / reg.name
+    # El dataset se arma sobre disco local: los recortes se leen con rutas y el parquet se escribe ahí.
+    if common.DATA.is_s3:
+        raise SystemExit("build_dataset.py trabaja en disco local; usa una raíz de datos local")
+    data = Path(common.DATA.root)
+    base = Path(common.CROPS.root) / reg.name
+    out_dir = data / "dataset" / reg.name
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    catalog_file = common.DATA / "catalog_clean.csv"
+    catalog_file = data / "catalog_clean.csv"
     if not catalog_file.exists():
         raise SystemExit(f"falta {catalog_file}; corre clean_catalog.py antes")
     catalog = pd.read_csv(catalog_file)

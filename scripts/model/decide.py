@@ -19,9 +19,9 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import common  # noqa: E402
-
 import features as features_mod  # noqa: E402
+
+import common  # noqa: E402
 
 
 def decide(rep: pd.DataFrame, cfg: dict) -> tuple[str, str]:
@@ -53,7 +53,7 @@ def decide(rep: pd.DataFrame, cfg: dict) -> tuple[str, str]:
 
     # Mejor FAR entre elegibles y desempate por un error estándar hacia el más simple.
     far_elig = {m: by[m]["FAR"] for m in elegibles}
-    mejor = min(far_elig, key=far_elig.get)
+    mejor = min(far_elig, key=lambda m: far_elig[m])
     se = by[mejor].get("dFAR_se", 0.0) or 0.0
     umbral_far = far_elig[mejor] + se
     for m in orden:  # orden de simplicidad
@@ -68,8 +68,18 @@ def decide(rep: pd.DataFrame, cfg: dict) -> tuple[str, str]:
 
 def to_markdown(rep: pd.DataFrame, elegido: str, razon: str, corte: str, cfg: dict) -> str:
     """Arma el documento decision_<corte>.md con la tabla y la decisión."""
-    cols = ["modelo", "POD", "FAR", "dias_por_deteccion", "PR_AUC",
-            "eventos", "detectados", "alertas", "dFAR_vs_M1", "dFAR_se"]
+    cols = [
+        "modelo",
+        "POD",
+        "FAR",
+        "dias_por_deteccion",
+        "PR_AUC",
+        "eventos",
+        "detectados",
+        "alertas",
+        "dFAR_vs_M1",
+        "dFAR_se",
+    ]
     cols = [c for c in cols if c in rep.columns]
     t = rep[cols].copy()
     for c in ("POD", "FAR", "PR_AUC", "dias_por_deteccion", "dFAR_vs_M1", "dFAR_se"):
@@ -118,7 +128,9 @@ def main() -> None:
     data_store = store.Store.at(root)
     rep_file = data_store.child("outputs", "cv_report.csv")
     assert rep_file.exists(), f"falta {rep_file.root} (corre cv.py --corte {a.corte})"
-    rep_all = pd.read_csv(rep_file.fs.open(rep_file.root, "rb") if rep_file.is_s3 else rep_file.root)
+    rep_all = pd.read_csv(
+        rep_file.fs.open(rep_file.root, "rb") if rep_file.is_s3 else rep_file.root
+    )
     rep = rep_all[rep_all["corte"] == a.corte].reset_index(drop=True)
 
     elegido, razon = decide(rep, cfg)

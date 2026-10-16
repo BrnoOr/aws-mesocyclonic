@@ -7,7 +7,6 @@ Lee imágenes consecutivas de ``ABI-L2-CMIPF`` (disco completo, 2 km, cada 10 mi
 minutos. Produce ``figs/fig3_goes_20190530.png``. Uso: ``uv run python scripts/figures/figs_goes.py``.
 """
 
-import glob
 import re
 import sys
 import warnings
@@ -84,7 +83,7 @@ def read(f: str) -> tuple[np.ndarray, np.ndarray, np.ndarray, float]:
     return bt, lat, lon, t
 
 
-fs = sorted(glob.glob(str(DATA / "goes" / "*.nc")))
+fs = [s.root for s in DATA.child("goes").glob("*.nc")]
 
 
 def stamp(f: str) -> str:

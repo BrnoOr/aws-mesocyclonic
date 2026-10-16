@@ -103,8 +103,14 @@ class M1ReglaFisica(Modelo):
 
     def _terms(self, X: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
         """Términos normalizados neg_stp/umbral y sherbe/umbral (0 si falta la columna)."""
-        stp = np.nan_to_num(X.get("neg_stp_max", pd.Series(0, index=X.index)).to_numpy(float)) / self.u_stp
-        she = np.nan_to_num(X.get("sherbe_max", pd.Series(0, index=X.index)).to_numpy(float)) / self.u_she
+        stp = (
+            np.nan_to_num(X.get("neg_stp_max", pd.Series(0, index=X.index)).to_numpy(float))
+            / self.u_stp
+        )
+        she = (
+            np.nan_to_num(X.get("sherbe_max", pd.Series(0, index=X.index)).to_numpy(float))
+            / self.u_she
+        )
         return stp, she
 
     def score(self, X: pd.DataFrame) -> np.ndarray:
@@ -129,8 +135,15 @@ class M2Logistica(Modelo):
         a, b, n = self.cfg["modelos"]["M2"]["C_grid_log10"]
         self.C_ = 1.0
         self.pipe = Pipeline(
-            [("scaler", StandardScaler()),
-             ("clf", LogisticRegression(penalty="l2", C=self.C_, class_weight="balanced", max_iter=2000))]
+            [
+                ("scaler", StandardScaler()),
+                (
+                    "clf",
+                    LogisticRegression(
+                        penalty="l2", C=self.C_, class_weight="balanced", max_iter=2000
+                    ),
+                ),
+            ]
         )
         self.pipe.fit(self._mat(X), y)
         return self
@@ -159,9 +172,17 @@ class M3Splines(Modelo):
         """Ajusta bases spline por variable y una logística encima."""
         m = self.cfg["modelos"]["M3"]
         self.pipe = Pipeline(
-            [("scaler", StandardScaler()),
-             ("spline", SplineTransformer(n_knots=m["n_knots"], degree=m["degree"], include_bias=False)),
-             ("clf", LogisticRegression(penalty="l2", C=1.0, class_weight="balanced", max_iter=2000))]
+            [
+                ("scaler", StandardScaler()),
+                (
+                    "spline",
+                    SplineTransformer(n_knots=m["n_knots"], degree=m["degree"], include_bias=False),
+                ),
+                (
+                    "clf",
+                    LogisticRegression(penalty="l2", C=1.0, class_weight="balanced", max_iter=2000),
+                ),
+            ]
         )
         self.pipe.fit(self._mat(X), y)
         return self
@@ -198,9 +219,13 @@ class M4Boosting(Modelo):
         mono = [1] * len(cols) if m.get("monotonic_indices", True) else None
         w = np.where(y == 1, (y == 0).sum() / max(1, (y == 1).sum()), 1.0)
         self.clf = HistGradientBoostingClassifier(
-            max_depth=m["max_depth"], learning_rate=m["learning_rate"], max_iter=m["max_iter"],
-            min_samples_leaf=m["min_samples_leaf"], l2_regularization=m["l2_regularization"],
-            monotonic_cst=mono, random_state=self.cfg["semilla"],
+            max_depth=m["max_depth"],
+            learning_rate=m["learning_rate"],
+            max_iter=m["max_iter"],
+            min_samples_leaf=m["min_samples_leaf"],
+            l2_regularization=m["l2_regularization"],
+            monotonic_cst=mono,
+            random_state=self.cfg["semilla"],
         )
         self.clf.fit(self._mat(X), y, sample_weight=w)
         return self

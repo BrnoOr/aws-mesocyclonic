@@ -35,8 +35,12 @@ def load_events(path: common.Store, resolucion: float = 1.0) -> pd.DataFrame:
     """
     with path.local_copy() as p:
         raw = pd.read_excel(p)
-    lat = pd.to_numeric(raw["Latitude"].astype(str).str.replace(",", ".", regex=False), errors="coerce")
-    lon = pd.to_numeric(raw["Longitude"].astype(str).str.replace(",", ".", regex=False), errors="coerce")
+    lat = pd.to_numeric(
+        raw["Latitude"].astype(str).str.replace(",", ".", regex=False), errors="coerce"
+    )
+    lon = pd.to_numeric(
+        raw["Longitude"].astype(str).str.replace(",", ".", regex=False), errors="coerce"
+    )
     fecha = pd.to_datetime(raw["Date (Gregorian Calendar)"], errors="coerce").dt.normalize()
     fecha = fecha.where(fecha >= pd.Timestamp("1940-01-01"))
     df = pd.DataFrame(
@@ -79,7 +83,7 @@ def print_counts_by_year(events: pd.DataFrame) -> None:
     counts = f.dt.year.value_counts().sort_index()
     print("eventos por año:", flush=True)
     for year, n in counts.items():
-        print(f"  {int(year)}: {int(n)}", flush=True)
+        print(f"  {year}: {n}", flush=True)
 
 
 def main() -> None:

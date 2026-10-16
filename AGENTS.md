@@ -45,11 +45,16 @@ devuelve al agente lo que ruff no corrige solo (en Codex se aprueba una vez con 
 | Ruta | Qué hay |
 |---|---|
 | `scripts/common.py` | Lo compartido: regiones (`REGIONS`, `--region`, `--bbox`), fechas, rutas, acceso anónimo a S3 y la proyección del ABI. Se importa como `import common`. |
+| `scripts/store.py` | `Store`: rutas de datos que funcionan igual en disco local y en S3 (`common.DATA`, `common.CROPS`). Se unen con `.child(...)`, no con `/`. |
 | `scripts/pipeline/` | Bajan ERA5 y GOES recortados y calculan índices. Escriben en `data/crops/<region>/`. |
+| `scripts/dataset/` | Tabla celda-hora con etiqueta y partición (`build_dataset.py`, lógica pura en `features.py`). |
+| `scripts/model/` | Modelo v1 por celda-día: `features` → `cv` → `decide` → `train` → `score`, y `app_resultados.py`. Especificación en `docs/v1_spec/`. |
 | `scripts/figures/` | Las figuras de `figs/` que usa el documento. |
 | `scripts/viewer/` | El visor Streamlit (`viewer.py` y el paquete `viewer_app/`). |
-| `tests/` | Pruebas con `unittest` (y AppTest de Streamlit para el visor). |
-| `docs/` | El documento del proyecto. |
+| `New_Web/` | Vórtice, paquete autocontenido (su propio `pyproject.toml`): modelo por celda-hora, sitio de producto con consola (`site/`) y su API de inferencia (`scripts/api/`, motor local o SageMaker en `sagemaker/`), app Streamlit (`scripts/webapp/model_app.py`) y la landing anterior (`landing/`). Ver `New_Web/RUN_ME.md`. |
+| `deploy/` | Despliegue en la EC2 por SSM: `deploy_vortice.ps1` con `steps/site_deploy.sh` (sitio en `/`, API en `/api/`), `steps/web_deploy.sh` (landing y app en `/app/`) o `steps/vortice_deploy.sh` (solo la app). Terraform de la máquina en `main.tf`. |
+| `tests/` | Pruebas con `unittest` (y AppTest de Streamlit para el visor). Las de `scripts/dataset/` viven junto al código. |
+| `docs/` | El documento del proyecto, resultados y presentaciones. |
 
 ## Agregar trabajo nuevo
 

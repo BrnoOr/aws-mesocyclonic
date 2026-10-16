@@ -5,6 +5,11 @@ __pycache__/
 venv/
 .ipynb_checkpoints/
 
+# Caché de herramientas (ruff, pyright, pytest): se regeneran, no son código fuente
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+
 # datos descargados (ERA5/GOES son enormes: nunca versionar)
 data/
 *.nc
@@ -35,3 +40,17 @@ Thumbs.db
 .superpowers/
 .impeccable/
 
+
+# Vórtice: el paquete del checkpoint para SageMaker se genera con sagemaker/package_model.py
+New_Web/sagemaker/model.tar.gz
+
+# Vórtice: artefactos locales del modelo (checkpoint y tablas de salida).
+# Son entradas/salidas que se entrenan o generan, no se versionan (ver AGENTS.md).
+# vortice_checkpoint.md documenta el checkpoint y se versiona aparte.
+model_vortice/*.pt
+model_vortice/*.parquet
+model_vortice/*.joblib
+
+# Exports pesados del pitch (duplicados de docs/pitch_vortice.pptx): no versionar
+docs/*SopaipIA*.pptx
+docs/*SopaipIA*.html

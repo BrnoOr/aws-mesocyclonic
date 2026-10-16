@@ -25,7 +25,9 @@ import xarray as xr
 from botocore.exceptions import BotoCoreError
 
 import store
-from store import COMPRESSION as COMPRESSION  # reexportado: scripts y figuras usan common.COMPRESSION
+from store import (
+    COMPRESSION as COMPRESSION,  # reexportado: scripts y figuras usan common.COMPRESSION
+)
 from store import Store
 
 ROOT = Path(__file__).resolve().parents[1]
