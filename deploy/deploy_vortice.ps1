@@ -9,6 +9,9 @@
 # Uso:
 #   powershell -NoProfile -File deploy/deploy_vortice.ps1
 #
+# Página del proyecto en / y la app en /app/ (mismo enlace CloudFront):
+#   powershell -NoProfile -File deploy/deploy_vortice.ps1 -StepScript deploy/steps/web_deploy.sh -HealthPath /app/_stcore/health
+#
 # Requiere: AWS CLI v2 con credenciales válidas de la cuenta 620965032345 (ver
 # docs/conectar_aws_kiro_cli.md). Si salen ExpiredToken/InvalidClientTokenId, renueva las credenciales
 # y vuelve a correr este script.
@@ -16,7 +19,9 @@ param(
   [string]$InstanceId   = "i-0ea9664c5e9ada5a0",
   [string]$Region       = "us-east-1",
   [string]$CloudFrontUrl = "https://d1y31u1kylukz6.cloudfront.net",
-  [int]$TimeoutSeconds  = 3600
+  [int]$TimeoutSeconds  = 3600,
+  [string]$StepScript   = "deploy/steps/vortice_deploy.sh",
+  [string]$HealthPath   = "/_stcore/health"
 )
 $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent $PSScriptRoot
@@ -38,7 +43,7 @@ Write-Host "PingStatus: $ping"
 if ($ping -notmatch "Online") { Fail "La instancia no está Online en SSM (¿apagada o agente caído?)." }
 
 Write-Host "=== 3/4 Enviando el deploy de Vórtice por SSM ===" -ForegroundColor Cyan
-$scriptPath = Join-Path $repoRoot "deploy/steps/vortice_deploy.sh"
+$scriptPath = Join-Path $repoRoot $StepScript
 if (-not (Test-Path $scriptPath)) { Fail "No se encuentra $scriptPath" }
 & (Join-Path $repoRoot "deploy/ssm_run.ps1") -ScriptPath $scriptPath -InstanceId $InstanceId -Region $Region -TimeoutSeconds $TimeoutSeconds
 if ($LASTEXITCODE -ne 0) { Fail "El deploy por SSM no terminó con éxito. Revisa el STDOUT/STDERR de arriba." }
@@ -48,7 +53,7 @@ Write-Host "=== 4/4 Verificando el enlace público (CloudFront) ===" -Foreground
 $ok = $false
 for ($i = 1; $i -le 20; $i++) {
   try {
-    $r = Invoke-WebRequest -Uri "$CloudFrontUrl/_stcore/health" -UseBasicParsing -TimeoutSec 10
+    $r = Invoke-WebRequest -Uri "$CloudFrontUrl$HealthPath" -UseBasicParsing -TimeoutSec 10
     if ($r.StatusCode -eq 200) {
       Write-Host "OK: Vórtice responde en $CloudFrontUrl (health 200)" -ForegroundColor Green
       $ok = $true; break

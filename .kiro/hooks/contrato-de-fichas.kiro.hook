@@ -1,0 +1,14 @@
+{
+  "enabled": true,
+  "name": "Validar ficha de modelo",
+  "description": "Cuando se crea o edita una ficha de modelo, la valida contra el objetivo vigente.",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": ["scripts/vortice/model_cards/*.yaml"]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Se editó una ficha de modelo de Vórtice. Ejecuta `uv run python scripts/vortice/register.py --card <archivo> --dry-run` y reporta los errores. Revisa además, contra .kiro/steering/contrato-modelos.md, que `features` no incluya columnas prohibidas, que `trained_on` no incluya test ni dev y que `complexity` sea coherente con el tipo de modelo. No modifiques objective.yaml."
+  }
+}

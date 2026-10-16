@@ -1,0 +1,14 @@
+{
+  "enabled": true,
+  "name": "Objetivo congelado",
+  "description": "Avisa cuando alguien cambia objective.yaml: cambia el hash e invalida la arena.",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": ["scripts/vortice/objective.yaml"]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Se editó scripts/vortice/objective.yaml. Detente y explica al usuario en español: (1) qué cambió respecto del último commit (`git diff scripts/vortice/objective.yaml`), (2) que el hash del objetivo cambia y las corridas anteriores dejan de contar en la arena, (3) que si el cambio no fue intencional debe revertirse. Si fue intencional, sube `version` (semver: mayor si cambia la pregunta, menor si cambia una métrica o compuerta) y recuerda volver a correr `evaluate.py --all` y `promote.py`. No cambies umbrales para favorecer a un modelo."
+  }
+}

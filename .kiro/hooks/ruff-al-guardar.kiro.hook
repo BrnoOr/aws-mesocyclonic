@@ -1,0 +1,14 @@
+{
+  "enabled": true,
+  "name": "Ruff al guardar",
+  "description": "Formatea y revisa con ruff cada .py editado, igual que .agents/hooks/ruff.sh en Claude Code y Codex.",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": ["scripts/**/*.py", "tests/**/*.py"]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Se editó un archivo Python. Ejecuta `uv run ruff format <archivo>` y `uv run ruff check --fix <archivo>`. Si quedan errores que ruff no corrige solo, corrígelos respetando AGENTS.md (anotaciones de tipos, docstrings en español, código en inglés)."
+  }
+}

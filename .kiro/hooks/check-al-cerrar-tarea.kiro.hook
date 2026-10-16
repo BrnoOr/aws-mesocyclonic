@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "make check manual",
+  "description": "Corre la verificación completa del repo (ruff, formato, pyright y pruebas) a pedido.",
+  "version": "1",
+  "when": {
+    "type": "userTriggered"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Ejecuta los comandos del objetivo `check` del Makefile (en Windows, uno por uno: `uv run ruff check scripts tests`, `uv run ruff format --check scripts tests`, `uv run pyright`, `uv run python -m unittest discover -s tests -v`). Resume en español qué falló y corrígelo sin desactivar reglas ni pruebas."
+  }
+}
