@@ -1,0 +1,699 @@
+<title>Vórtice</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Vórtice marca, celda por celda y hora por hora, dónde el centro-sur de Chile tiene condiciones para tornados. Datos abiertos, modelo propio y una API lista para Amazon SageMaker.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* Diseño: paleta y fuentes del visor del proyecto (.streamlit/config.toml, viewer_app/theme.py).
+   Página de producto: portada, la consola en vivo al centro y la evidencia después. El rojo solo marca tornados. */
+:root {
+  --ground: #F1FAEE; --surface: #FFFFFF; --surface-2: #EFF8F9; --line: #BDD4D6;
+  --ink: #0E1A2C; --ink-2: #1D3557; --muted: #465463;
+  --accent: #376284; --accent-soft: #A8DADC; --severe: #E63946; --warm: #B07800;
+  --ok: #2E7D5B; --ok-soft: #DCEFE4; --mid: #8A6100; --mid-soft: #F6EBCF;
+  --sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --display: "IBM Plex Sans Condensed", "Arial Narrow", "IBM Plex Sans", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --measure: 68ch; --wide: 1160px; --radius: 6px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --ground: #172A46; --surface: #1D3557; --surface-2: #2C4362; --line: #475C75;
+  --ink: #F1FAEE; --ink-2: #D4EDE7; --muted: #A9B8BE;
+  --accent: #A8DADC; --accent-soft: #3D6E8E; --severe: #E7434E; --warm: #E69F00;
+  --ok: #7FD1A6; --ok-soft: #234A45; --mid: #F0C062; --mid-soft: #4A4330;
+  color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --ground: #172A46; --surface: #1D3557; --surface-2: #2C4362; --line: #475C75;
+  --ink: #F1FAEE; --ink-2: #D4EDE7; --muted: #A9B8BE;
+  --accent: #A8DADC; --accent-soft: #3D6E8E; --severe: #E7434E; --warm: #E69F00;
+  --ok: #7FD1A6; --ok-soft: #234A45; --mid: #F0C062; --mid-soft: #4A4330;
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 400 1.0625rem/1.6 var(--sans); }
+img { max-width: 100%; height: auto; display: block; }
+a { color: var(--accent); text-underline-offset: 3px; }
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, canvas:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+h1, h2, h3 { text-wrap: balance; margin: 0; }
+h2 { font: 700 clamp(1.7rem, 3.4vw, 2.4rem)/1.12 var(--display); color: var(--ink); }
+h3 { font: 600 1.1rem/1.3 var(--sans); color: var(--ink); }
+p { margin: 0; }
+code, .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.wrap { width: 100%; max-width: var(--wide); margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.eyebrow { font: 600 0.78rem/1.2 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+.lede { font-size: 1.15rem; line-height: 1.55; color: var(--ink-2); max-width: var(--measure); }
+.note { font-size: 0.88rem; line-height: 1.5; color: var(--muted); }
+section { padding-block: clamp(56px, 8vw, 96px); }
+section + section { border-top: 1px solid var(--line); }
+.section-head { display: grid; gap: 12px; margin-bottom: 32px; max-width: var(--measure); }
+
+/* Barra superior */
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface); }
+.topbar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 9; background: var(--surface); border-bottom: 1px solid var(--line); }
+.topbar .wrap { display: flex; align-items: center; gap: 20px; min-height: 52px; padding-block: 6px; }
+.brand { font: 700 1.2rem/1 var(--display); color: var(--ink); text-decoration: none; display: flex; align-items: center; gap: 8px; }
+.brand svg { width: 20px; height: 20px; }
+.topbar nav { display: flex; gap: 18px; flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.topbar nav a { color: var(--muted); text-decoration: none; font-size: 0.9rem; white-space: nowrap; }
+.topbar nav a:hover { color: var(--ink); }
+@media (max-width: 760px) { .topbar nav { display: none; } .topbar .wrap { justify-content: space-between; } }
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 9px 16px; border-radius: var(--radius); font: 600 0.95rem/1.2 var(--sans); text-decoration: none; border: 1px solid transparent; white-space: nowrap; cursor: pointer; }
+.btn-primary { background: var(--ink-2); color: var(--ground); }
+.btn-primary:hover { background: var(--accent); }
+.btn-ghost { border-color: currentColor; color: inherit; background: transparent; }
+.topbar .btn { padding: 7px 12px; font-size: 0.85rem; }
+
+/* Portada */
+.hero { position: relative; color: #F1FAEE; background: #0E1A2C; overflow: hidden; }
+.hero img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 40%; opacity: 0.6; }
+.hero::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(14,26,44,0.93) 0%, rgba(14,26,44,0.72) 48%, rgba(14,26,44,0.18) 100%); }
+.hero .wrap { position: relative; z-index: 1; padding-block: clamp(56px, 10vw, 116px) clamp(36px, 6vw, 72px); display: grid; gap: 22px; }
+.hero .eyebrow { color: #A8DADC; }
+.hero h1 { font: 700 clamp(2.5rem, 7vw, 5rem)/0.98 var(--display); letter-spacing: -0.015em; max-width: 14ch; }
+.hero .lede { color: #DCEBEA; max-width: 56ch; }
+.hero-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.hero .btn-primary { background: #F1FAEE; color: #0E1A2C; }
+.hero .btn-primary:hover { background: #A8DADC; }
+.hero .credit { font-size: 0.78rem; color: #B9C8CC; max-width: 62ch; }
+.hero .credit a { color: inherit; }
+.proof { display: flex; flex-wrap: wrap; gap: 10px 28px; padding-top: 12px; border-top: 1px solid rgba(168,218,220,0.35); max-width: 760px; }
+.proof div { display: grid; gap: 2px; }
+.proof b { font: 700 1.6rem/1 var(--display); color: #F1FAEE; font-variant-numeric: tabular-nums; }
+.proof span { font-size: 0.82rem; color: #B9C8CC; }
+
+/* Problema */
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-block: 1px solid var(--line); }
+.stat { padding: 20px 20px 20px 0; display: grid; gap: 6px; align-content: start; }
+.stat + .stat { padding-left: 20px; border-left: 1px solid var(--line); }
+.stat b { font: 700 clamp(2.2rem, 5vw, 3.1rem)/1 var(--display); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.stat span { font-size: 0.9rem; line-height: 1.4; color: var(--muted); }
+@media (max-width: 760px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stat:nth-child(3) { padding-left: 0; border-left: 0; } .stat:nth-child(n+3) { border-top: 1px solid var(--line); } }
+
+/* Producto */
+.pillars { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px; }
+.pillar { display: grid; gap: 8px; align-content: start; padding-top: 16px; border-top: 2px solid var(--ink-2); }
+.pillar p { color: var(--ink-2); font-size: 0.98rem; }
+.audience { margin-top: 36px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.audience article { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; display: grid; gap: 6px; align-content: start; }
+.audience .who { font: 600 0.75rem var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); }
+.audience p { font-size: 0.93rem; color: var(--ink-2); }
+@media (max-width: 860px) { .pillars, .audience { grid-template-columns: minmax(0, 1fr); gap: 20px; } }
+
+/* Consola */
+#consola { background: var(--surface); }
+.console { border: 1px solid var(--line); border-radius: var(--radius); background: var(--ground); }
+.console-bar { display: flex; flex-wrap: wrap; align-items: end; gap: 14px 22px; padding: 14px 16px; border-bottom: 1px solid var(--line); background: var(--surface-2); border-radius: var(--radius) var(--radius) 0 0; }
+.field { display: grid; gap: 4px; min-width: 0; }
+.field label, .field .lbl { font: 600 0.72rem var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.field.grow { flex: 1 1 220px; }
+select { font: 400 0.92rem var(--sans); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 6px 8px; max-width: 100%; }
+.hour-row { display: flex; align-items: center; gap: 12px; }
+.hour-row output { font: 600 1.25rem/1 var(--mono); color: var(--ink); min-width: 4.2ch; }
+input[type="range"] { width: 100%; accent-color: var(--accent); }
+.engine { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; font-size: 0.82rem; color: var(--ink-2); padding: 6px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); max-width: 100%; }
+.engine i { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); flex: none; }
+.engine.demo i { background: var(--warm); }
+.console-body { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.75fr); gap: 20px; padding: 16px; }
+@media (max-width: 900px) { .console-body { grid-template-columns: minmax(0, 1fr); } }
+.maps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.map-card { margin: 0; display: grid; gap: 6px; min-width: 0; }
+.map-card header { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.map-card h3 { font-size: 0.95rem; }
+.map-card canvas { width: 100%; height: auto; aspect-ratio: 25 / 43.75; border: 1px solid var(--line); border-radius: var(--radius); background: #E3EEF3; display: block; cursor: crosshair; }
+.legend { display: grid; gap: 6px; font-size: 0.78rem; color: var(--muted); margin-top: 10px; }
+.ramp { height: 10px; border-radius: 3px; background: linear-gradient(90deg, #E3EEF3, #C9E4E2 15%, #7FB6C6 30%, #457B9D 45%, #2B4A75 60%, #1D2A4F 75%, #0B1020); border: 1px solid var(--line); }
+.ramp-labels { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 0.72rem; }
+.key { display: flex; flex-wrap: wrap; gap: 14px; }
+.key i { display: inline-block; width: 11px; height: 11px; margin-right: 6px; vertical-align: -1px; }
+.key .tri { width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 11px solid #E63946; }
+.panel { display: grid; gap: 14px; align-content: start; min-width: 0; }
+.readout { display: grid; gap: 2px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.readout b { font: 700 1.8rem/1.05 var(--display); color: var(--ink); font-variant-numeric: tabular-nums; }
+.readout span { font-size: 0.86rem; color: var(--muted); line-height: 1.4; }
+.cell { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; display: grid; gap: 8px; }
+.cell h3 { font-size: 0.95rem; display: flex; justify-content: space-between; gap: 8px; }
+.cell h3 span { font: 600 0.95rem var(--mono); color: var(--accent); }
+.cell table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.cell td { padding: 4px 0; border-bottom: 1px solid var(--line); }
+.cell td:last-child { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.alerts { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.alerts button { width: 100%; display: flex; justify-content: space-between; gap: 8px; font: 400 0.86rem var(--mono); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 7px 10px; cursor: pointer; text-align: left; }
+.alerts button:hover { border-color: var(--accent); }
+.alerts b { color: var(--accent); }
+.console-foot { padding: 12px 16px; border-top: 1px solid var(--line); }
+
+/* Evidencia */
+.chart-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px 20px 12px; }
+.chart-wrap svg { display: block; width: 100%; min-width: 520px; height: auto; }
+.chart-wrap svg text { fill: var(--muted); font-family: var(--sans); }
+.chart-wrap svg .lbl { fill: var(--ink); font-weight: 600; }
+.chart-wrap svg .val { fill: var(--ink); font-family: var(--mono); font-weight: 600; }
+.chart-wrap svg .grid { stroke: var(--line); }
+.chart-wrap svg .null { fill: var(--line); }
+.chart-wrap svg .nulltick { stroke: var(--muted); }
+.chart-wrap svg .bar-model { fill: var(--accent); }
+.chart-wrap svg .bar-rule { fill: var(--warm); }
+.kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 28px; }
+@media (max-width: 860px) { .kpis { grid-template-columns: minmax(0, 1fr); } }
+.kpi { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; display: grid; gap: 10px; align-content: start; }
+.kpi h3 { font-size: 0.92rem; color: var(--muted); font-weight: 600; }
+.kpi b { font: 700 2.6rem/1 var(--display); color: var(--ink); font-variant-numeric: tabular-nums; }
+.kpi dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0; font-size: 0.86rem; }
+.kpi dt { color: var(--muted); }
+.kpi dd { margin: 0; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.pill { justify-self: start; font: 600 0.78rem/1 var(--sans); padding: 5px 9px; border-radius: 999px; }
+.pill.ok { background: var(--ok-soft); color: var(--ok); }
+.pill.mid { background: var(--mid-soft); color: var(--mid); }
+
+/* Integración */
+.integrate { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(20px, 3vw, 40px); align-items: start; margin-top: 28px; }
+@media (max-width: 900px) { .integrate { grid-template-columns: minmax(0, 1fr); } }
+.arch { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; }
+.arch svg { display: block; width: 100%; min-width: 720px; height: auto; }
+.arch svg text { fill: var(--ink); font-family: var(--sans); font-size: 13px; }
+.arch svg .sub { fill: var(--muted); font-size: 11.5px; font-family: var(--mono); }
+.arch svg .box { fill: var(--surface-2); stroke: var(--line); }
+.arch svg .box-hi { fill: var(--surface-2); stroke: var(--accent); stroke-width: 1.5; }
+.arch svg .box-next { fill: none; stroke: var(--accent); stroke-dasharray: 5 4; stroke-width: 1.5; }
+.arch svg .edge { stroke: var(--muted); fill: none; stroke-width: 1.4; }
+.arch svg .edge-next { stroke: var(--accent); fill: none; stroke-width: 1.4; stroke-dasharray: 5 4; }
+.arch svg .head { fill: var(--muted); }
+.arch svg .zone { fill: none; stroke: var(--line); stroke-dasharray: 5 4; }
+.arch svg .tag { fill: var(--accent); font-family: var(--mono); font-size: 11px; font-weight: 600; }
+pre { margin: 0; overflow-x: auto; background: var(--ink-2); color: #F1FAEE; border-radius: var(--radius); padding: 16px; font: 400 0.82rem/1.55 var(--mono); }
+.swap { display: grid; gap: 12px; }
+.swap ol { margin: 0; padding-left: 1.2em; display: grid; gap: 8px; color: var(--ink-2); font-size: 0.95rem; }
+
+/* Planes y límites */
+.plans { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.plans article { padding: 20px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); display: grid; gap: 10px; align-content: start; }
+.plans article.now { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.plans .when { font: 600 0.75rem var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); }
+.plans ul { margin: 0; padding-left: 1.1em; display: grid; gap: 6px; font-size: 0.93rem; color: var(--ink-2); }
+@media (max-width: 860px) { .plans { grid-template-columns: minmax(0, 1fr); } }
+.limits { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 40px; margin: 0; padding: 0; }
+.limits li { list-style: none; padding: 16px 0; border-top: 1px solid var(--line); display: grid; gap: 4px; }
+.limits b { font-weight: 600; }
+.limits span { font-size: 0.95rem; color: var(--muted); }
+@media (max-width: 760px) { .limits { grid-template-columns: minmax(0, 1fr); } }
+.cta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 20px; padding: 28px; border-radius: var(--radius); background: var(--ink-2); color: var(--ground); margin-top: 48px; }
+.cta h3 { color: var(--ground); font: 700 1.6rem/1.15 var(--display); }
+.cta p { color: var(--accent-soft); font-size: 0.95rem; }
+.cta .btn-primary { background: var(--ground); color: var(--ink-2); }
+
+footer.site { background: var(--surface); border-top: 1px solid var(--line); padding-block: 40px; font-size: 0.88rem; color: var(--muted); }
+footer.site .wrap { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr); gap: 32px; }
+footer.site h3 { font-size: 0.85rem; margin-bottom: 8px; }
+footer.site ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+footer.site p, footer.site li { overflow-wrap: anywhere; }
+@media (max-width: 760px) { footer.site .wrap { grid-template-columns: minmax(0, 1fr); } }
+</style>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="#inicio" aria-label="Vórtice, inicio">
+      <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 4h14M5 8h10M7 12h6M9 16h2" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+      Vórtice
+    </a>
+    <nav aria-label="Secciones">
+      <a href="#producto">Producto</a>
+      <a href="#consola">Consola</a>
+      <a href="#evidencia">Evidencia</a>
+      <a href="#integracion">Integración</a>
+      <a href="#planes">Planes</a>
+    </nav>
+    <a class="btn btn-primary" href="#consola">Probar la consola</a>
+  </div>
+</header>
+
+<main id="inicio">
+  <div class="hero">
+    <img src="assets/tornado_los_angeles.webp" alt="Tornado sobre Los Ángeles, Región del Biobío, el 30 de mayo de 2019" width="1024" height="722">
+    <div class="wrap">
+      <p class="eyebrow">Vigilancia de tormentas rotantes para Chile</p>
+      <h1>Encontrar las tormentas que nadie vio</h1>
+      <p class="lede">Chile no tiene una red de radares meteorológicos. Vórtice lee la atmósfera con datos abiertos y marca cada hora, en celdas de 25 km, dónde el centro-sur tiene las condiciones que antecedieron a los tornados documentados.</p>
+      <div class="hero-actions">
+        <a class="btn btn-primary" href="#consola">Probar la consola</a>
+        <a class="btn btn-ghost" href="#integracion">Cómo se integra</a>
+      </div>
+      <div class="proof">
+        <div><b>2×</b><span>los tornados que detecta la regla física, con la misma área marcada</span></div>
+        <div><b>5 de 7</b><span>tornados de 2024–2025 que el modelo nunca vio</span></div>
+        <div><b>1 API</b><span>hoy con checkpoint local, mañana en Amazon SageMaker</span></div>
+      </div>
+      <p class="credit">Los Ángeles, Biobío, 30 de mayo de 2019. Foto publicada en <a href="https://www.meteored.cl/noticias/ciencia/el-dia-que-marco-el-antes-y-el-despues-de-los-tornados-en-chile.html" target="_blank" rel="noopener">Vicencio Veloso (2022), Meteored</a>; la fuente no indica quién la tomó.</p>
+    </div>
+  </div>
+
+  <section id="problema">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">El problema</p>
+        <h2>En Chile hay tornados, pero casi nadie los ve</h2>
+        <p class="lede">El 30 de mayo de 2019 un tornado EF2 cruzó Los Ángeles: una persona murió y decenas quedaron heridas. Nadie avisó porque no había con qué. Sin radar, un tornado solo existe si alguien lo ve y lo reporta.</p>
+      </div>
+      <div class="stats">
+        <div class="stat"><b>102</b><span>tornados y trombas catalogados entre 1554 y 2025</span></div>
+        <div class="stat"><b>68</b><span>de ellos desde 2015: el registro crece con los celulares</span></div>
+        <div class="stat"><b>7</b><span>tornados en menos de 24 horas en mayo de 2019</span></div>
+        <div class="stat"><b>0 de 7</b><span>marcados por el índice STP con umbrales de Estados Unidos</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="producto">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">El producto</p>
+        <h2>Un puntaje por celda y por hora, con su explicación</h2>
+        <p class="lede">Vórtice está calibrado para el régimen chileno: mucha cizalle y poca inestabilidad, signos del hemisferio sur y un catálogo que solo registra lo que alguien vio.</p>
+      </div>
+      <div class="pillars">
+        <div class="pillar"><h3>Vigila</h3><p>Puntúa de 0 a 100 cada celda de 25 km entre 30° y 45°S, hora a hora, con índices físicos calculados desde ERA5.</p></div>
+        <div class="pillar"><h3>Explica</h3><p>Cada alerta muestra la cizalle, la helicidad, la base de la nube y el gradiente térmico que la sostienen, para que un meteorólogo la revise en segundos.</p></div>
+        <div class="pillar"><h3>Anticipa</h3><p>Usa solo variables de viento que los pronósticos de IA reproducen bien, así que corre igual sobre Pangu-Weather que sobre el reanálisis.</p></div>
+      </div>
+      <div class="audience">
+        <article><span class="who">CR2 y universidades</span><h3>Completar el catálogo</h3><p>Días y lugares con puntaje alto y sin reporte, para buscar daños y testimonios antes de que se pierdan.</p></article>
+        <article><span class="who">Planificación</span><h3>Dónde poner radares</h3><p>El puntaje acumulado de varias temporadas muestra dónde se concentran las condiciones favorables.</p></article>
+        <article><span class="who">DMC y Senapred</span><h3>Avisos con anticipación</h3><p>Sobre pronósticos de IA, Vórtice puede convertirse en una alerta temprana para el centro-sur.</p></article>
+      </div>
+    </div>
+  </section>
+
+  <section id="consola">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">Consola Vórtice</p>
+        <h2>Pruébalo con un brote real</h2>
+        <p class="lede">Elige un día y una hora. A la izquierda, el puntaje de Vórtice; a la derecha, una regla física de referencia. Toca una celda para ver qué índices la explican. Ninguno de estos días se usó para entrenar el modelo.</p>
+      </div>
+
+      <div class="console">
+        <div class="console-bar">
+          <div class="field">
+            <label for="day-select">Día</label>
+            <select id="day-select"><option>Cargando…</option></select>
+          </div>
+          <div class="field grow">
+            <span class="lbl" id="hour-lbl">Hora UTC</span>
+            <div class="hour-row">
+              <output id="hour-out" for="hour">20:00</output>
+              <input id="hour" type="range" min="12" max="23" step="1" value="20" aria-labelledby="hour-lbl">
+            </div>
+          </div>
+          <div class="field">
+            <label for="rule-select">Comparar con</label>
+            <select id="rule-select">
+              <option value="stp">STP left-mover ≤ −0,3</option>
+              <option value="hslc_b">HSLC (cizalle y helicidad)</option>
+            </select>
+          </div>
+          <span class="engine" id="engine"><i aria-hidden="true"></i><span id="engine-txt">Conectando con el motor…</span></span>
+        </div>
+
+        <div class="console-body">
+          <div>
+            <div class="maps">
+              <figure class="map-card">
+                <header><h3>Vórtice</h3><span class="note">puntaje 0–100</span></header>
+                <canvas id="map-model" width="500" height="875" tabindex="0" role="img" aria-label="Mapa del puntaje de Vórtice"></canvas>
+              </figure>
+              <figure class="map-card">
+                <header><h3 id="rule-title">Regla física</h3><span class="note">dispara o no</span></header>
+                <canvas id="map-rule" width="500" height="875" tabindex="0" role="img" aria-label="Mapa de las celdas donde se dispara la regla física"></canvas>
+              </figure>
+            </div>
+            <div class="legend">
+              <div class="ramp" aria-hidden="true"></div>
+              <div class="ramp-labels"><span>0</span><span>50</span><span>100</span></div>
+              <div class="key">
+                <span><i class="tri"></i>tornado o tromba del catálogo (relleno: ya ocurrió)</span>
+                <span><i style="background:#E69F00"></i>regla disparada</span>
+                <span><i style="border:2px solid #E63946"></i>celda seleccionada</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="readout"><b id="r-pct">—</b><span id="r-pct-txt">Dónde quedan las celdas junto a los tornados frente al resto del dominio.</span></div>
+            <div class="readout"><b id="r-rule">—</b><span id="r-rule-txt">del dominio marcado por la regla física.</span></div>
+            <div class="cell" id="cell">
+              <h3>Celda seleccionada <span id="cell-score">—</span></h3>
+              <p class="note" id="cell-where">Toca el mapa o una alerta de la lista.</p>
+              <table id="cell-table" hidden><tbody></tbody></table>
+            </div>
+            <div>
+              <h3 style="font-size:0.95rem;margin-bottom:8px">Puntajes más altos a esta hora</h3>
+              <ul class="alerts" id="alerts"></ul>
+            </div>
+          </div>
+        </div>
+        <p class="console-foot note" id="console-foot">Puntajes del checkpoint actual de Vórtice sobre ERA5 (0,25°). Relieve en gris; el mar en celeste.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="evidencia">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">Evidencia · pronóstico Pangu-Weather</p>
+        <h2>Con la misma área marcada, Vórtice detecta el doble que la regla física</h2>
+        <p class="lede">Aplicamos el modelo al pronóstico de Pangu-Weather para 25 tornados y trombas de 2021 a 2025. Cada evento se puntuó con un modelo que no vio su año; los 7 de 2024–2025 nunca se usaron para entrenar.</p>
+      </div>
+      <div class="chart-wrap">
+        <svg id="aiwp-chart" viewBox="0 0 760 300" role="img" aria-labelledby="aiwp-title aiwp-desc">
+          <title id="aiwp-title">Eventos detectados por Vórtice y por la regla física, con la misma área marcada</title>
+          <desc id="aiwp-desc">Con 1,07 % del área: Vórtice 40 %, regla A 20 %. Con 10,74 % del área: Vórtice 80 %, regla B 32 %. La banda gris es lo que capturarían marcas al azar con la misma huella.</desc>
+        </svg>
+      </div>
+      <p class="note" style="margin-top:12px;max-width:var(--measure)">Detectado: una celda marcada a 50 km o menos y a ±6 h del evento. La banda gris es la detección que daría el mismo patrón de marcas al azar (5–95 %) y la raya, su media. Vórtice queda +17 puntos sobre el azar; las reglas, +2 a +4 (p ≈ 0,06).</p>
+      <div class="kpis">
+        <article class="kpi"><h3>Detección de tornados nunca vistos</h3><b>5 de 7</b><span class="pill ok">Cumple la meta, con pocos casos</span>
+          <dl><dt>Vórtice</dt><dd>71 % [36–92 %]</dd><dt>Meta CR2</dt><dd>≥ 70 %</dd><dt>Base</dt><dd>STP 0 de 7</dd></dl></article>
+        <article class="kpi"><h3>Falsas alarmas por día</h3><b>≈ 60 %</b><span class="pill mid">Mejora la base, no llega a la meta</span>
+          <dl><dt>Vórtice</dt><dd>≈ 60 % [32–68 %]</dd><dt>Meta CR2</dt><dd>≤ 50 %</dd><dt>Base</dt><dd>≈ 70 %</dd></dl></article>
+        <article class="kpi"><h3>Días de alerta por acierto</h3><b>≈ 2,5</b><span class="pill mid">Cerca de la meta</span>
+          <dl><dt>Vórtice</dt><dd>≈ 2,5</dd><dt>Meta CR2</dt><dd>≤ 2</dd><dt>Base</dt><dd>≈ 4</dd></dl></article>
+      </div>
+    </div>
+  </section>
+
+  <section id="integracion">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">Integración en AWS</p>
+        <h2>Un contrato, dos motores</h2>
+        <p class="lede">La consola y cualquier sistema externo le piden puntajes a la API de Vórtice. Hoy la API responde con el checkpoint cargado en la misma máquina; el siguiente paso es servir ese mismo checkpoint desde un endpoint de Amazon SageMaker, sin cambiar la web ni el contrato.</p>
+      </div>
+      <div class="arch">
+        <svg viewBox="0 0 940 260" role="img" aria-labelledby="arch-title">
+          <title id="arch-title">Arquitectura: datos abiertos en S3, pipeline en EC2, API de Vórtice con checkpoint local hoy y endpoint de SageMaker después, y la web por CloudFront</title>
+          <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="head" d="M0 0 L10 5 L0 10z"/></marker>
+          </defs>
+          <rect class="zone" x="8" y="14" width="196" height="232" rx="8"/>
+          <text class="sub" x="22" y="34">S3 · Open Data</text>
+          <rect class="box" x="22" y="48" width="168" height="58" rx="6"/><text x="36" y="72">ERA5</text><text class="sub" x="36" y="92">nsf-ncar-era5</text>
+          <rect class="box" x="22" y="120" width="168" height="58" rx="6"/><text x="36" y="144">GOES-16 / 19</text><text class="sub" x="36" y="164">noaa-goes16/19</text>
+          <text class="sub" x="36" y="214">+ catálogo CR2</text>
+
+          <rect class="zone" x="236" y="14" width="440" height="232" rx="8"/>
+          <text class="sub" x="250" y="34">EC2 Graviton · Docker · SSM</text>
+          <rect class="box" x="252" y="48" width="190" height="58" rx="6"/><text x="266" y="72">Pipeline de índices</text><text class="sub" x="266" y="92">recortes ERA5 australes</text>
+          <rect class="box-hi" x="470" y="48" width="190" height="58" rx="6"/><text x="484" y="72">API Vórtice</text><text class="sub" x="484" y="92">FastAPI · /api/day, /predict</text>
+          <rect class="box" x="470" y="160" width="190" height="58" rx="6"/><text x="484" y="184">Checkpoint local</text><text class="sub" x="484" y="204">modelo.joblib</text>
+          <text class="tag" x="400" y="194">HOY</text>
+          <rect class="box" x="252" y="160" width="140" height="58" rx="6"/><text x="266" y="184">Web + consola</text><text class="sub" x="266" y="204">nginx</text>
+
+          <rect class="box-next" x="716" y="48" width="208" height="70" rx="6"/><text x="730" y="74">Amazon SageMaker</text><text class="sub" x="730" y="94">endpoint · model.tar.gz</text><text class="tag" x="730" y="110">PRÓXIMO</text>
+          <rect class="box" x="716" y="160" width="208" height="58" rx="6"/><text x="730" y="184">CloudFront</text><text class="sub" x="730" y="204">HTTPS · enlace público</text>
+
+          <path class="edge" d="M190 77 H252" marker-end="url(#arrow)"/>
+          <path class="edge" d="M190 149 H222 V90 H252" marker-end="url(#arrow)"/>
+          <path class="edge" d="M442 77 H470" marker-end="url(#arrow)"/>
+          <path class="edge" d="M565 106 V160" marker-end="url(#arrow)"/>
+          <path class="edge-next" d="M660 77 H716" marker-end="url(#arrow)"/>
+          <path class="edge" d="M392 189 H430 V96 H470" marker-end="url(#arrow)"/>
+          <path class="edge" d="M716 189 H690 V232 H322 V218" marker-end="url(#arrow)"/>
+        </svg>
+      </div>
+      <div class="integrate">
+        <div class="swap">
+          <h3>Pasar a SageMaker en tres pasos</h3>
+          <ol>
+            <li>Empaquetar el checkpoint: <code>sagemaker/package_model.py</code> arma <code>model.tar.gz</code> con el modelo y su manejador de inferencia.</li>
+            <li>Crear el endpoint con el contenedor de scikit-learn de SageMaker.</li>
+            <li>Cambiar dos variables de la API: <code>VORTICE_PREDICTOR=sagemaker</code> y el nombre del endpoint. La web no cambia.</li>
+          </ol>
+          <p class="note">La API expone su documentación en <a href="api/docs">/api/docs</a> cuando está desplegada.</p>
+        </div>
+        <pre><code>curl -X POST https://&lt;vortice&gt;/api/predict \
+  -H "Content-Type: application/json" \
+  -d '{"rows": [{"shear_01": 15.2, "srh_01": -210,
+       "lcl": 620, "gamma_03": 6.1, ...}]}'
+
+{"probabilities": [0.74]}</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <section id="planes">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">Planes</p>
+        <h2>De piloto a servicio</h2>
+      </div>
+      <div class="plans">
+        <article class="now"><span class="when">Hoy · piloto</span><h3>Consola y API</h3>
+          <ul><li>Casos históricos puntuados hora a hora</li><li>Checkpoint local en una EC2 Graviton</li><li>Evidencia sobre pronóstico Pangu-Weather</li></ul></article>
+        <article><span class="when">Temporada 2026</span><h3>Vigilancia continua</h3>
+          <ul><li>Endpoint de SageMaker con el mismo contrato</li><li>Puntaje diario de abril a septiembre</li><li>Imágenes GOES como segunda fuente</li><li>Lista de revisión semanal para el CR2</li></ul></article>
+        <article><span class="when">Operación</span><h3>Avisos y planificación</h3>
+          <ul><li>Corrida automática sobre pronósticos de IA</li><li>Mapa de riesgo para ubicar radares</li><li>Integración con la DMC y Senapred</li></ul></article>
+      </div>
+
+      <div class="section-head" style="margin-top:56px">
+        <p class="eyebrow">Lo que todavía no sabemos</p>
+        <h3 style="font:700 1.5rem/1.2 var(--display)">Los números, con su letra chica</h3>
+      </div>
+      <ul class="limits">
+        <li><b>Pocos eventos</b><span>25 eventos en la evaluación y 7 nunca vistos: los intervalos son anchos y la ventaja sobre el azar tiene p ≈ 0,06.</span></li>
+        <li><b>El umbral importa</b><span>Elegido sobre las mismas predicciones de validación, la detección sube a 89 %; con selección anidada baja a 37 %.</span></li>
+        <li><b>Falsas alarmas sobrestimadas</b><span>Un día sin registro no es un día sin tornado: parte de las alarmas pueden ser eventos que nadie vio.</span></li>
+        <li><b>Puntaje relativo</b><span>El puntaje ordena celdas; todavía no es una probabilidad calibrada. Sobre los Andes puede haber artefactos.</span></li>
+      </ul>
+
+      <div class="cta">
+        <div><h3>¿Pilotamos Vórtice en la temporada 2026?</h3><p>Proyecto de la hackatón Breaking Barriers Chile 2026 para el desafío del CR2.</p></div>
+        <a class="btn btn-primary" href="#consola">Volver a la consola</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="site">
+  <div class="wrap">
+    <div>
+      <h3>Vórtice</h3>
+      <p>Proyecto para la hackatón Breaking Barriers Chile 2026, desafío del Centro de Ciencia del Clima y la Resiliencia (CR2) de la Universidad de Chile, sobre AWS.</p>
+    </div>
+    <div>
+      <h3>Datos</h3>
+      <ul>
+        <li><a href="https://doi.org/10.6084/m9.figshare.25119566" target="_blank" rel="noopener">Tornados y Trombas en Chile</a>, Bastías-Curivil et al., CC BY 4.0</li>
+        <li><a href="https://registry.opendata.aws/nsf-ncar-era5/" target="_blank" rel="noopener">ERA5 en AWS (NSF NCAR)</a></li>
+        <li><a href="https://registry.opendata.aws/noaa-goes/" target="_blank" rel="noopener">GOES-16 y GOES-19 (NOAA)</a></li>
+      </ul>
+    </div>
+    <div>
+      <h3>Código</h3>
+      <ul>
+        <li><a href="https://github.com/BrnoOr/aws-mesocyclonic" target="_blank" rel="noopener">github.com/BrnoOr/aws-mesocyclonic</a></li>
+        <li><a href="api/docs">Documentación de la API</a></li>
+      </ul>
+    </div>
+  </div>
+</footer>
+
+<script>
+(() => {
+  "use strict";
+  const ROWS = 35;                                   // filas visibles: 8,5° de latitud
+  const RAMP = [[0, [227, 238, 243]], [15, [201, 228, 226]], [30, [127, 182, 198]], [45, [69, 123, 157]],
+                [60, [43, 74, 117]], [75, [29, 42, 79]], [100, [11, 16, 32]]];
+  const SEVERE = "#E63946";
+  const RULE_NAMES = { stp: "STP left-mover ≤ −0,3", hslc_b: "HSLC (cizalle y helicidad)" };
+  const $ = id => document.getElementById(id);
+  const state = { day: null, data: null, demo: false, sel: null };
+  const cache = {};
+
+  const getJSON = u => fetch(u, { headers: { Accept: "application/json" } })
+    .then(r => r.ok ? r.json() : Promise.reject(new Error(`${u}: ${r.status}`)));
+  // Primero la API; si no responde, los datos precalculados de assets/ (modo demostración).
+  const load = (api, snap) => getJSON(api).catch(() => { state.demo = true; return getJSON(snap); });
+
+  function rampColor(v) {
+    for (let i = 1; i < RAMP.length; i++) if (v <= RAMP[i][0]) {
+      const [a, ca] = RAMP[i - 1], [b, cb] = RAMP[i], t = (v - a) / (b - a);
+      return ca.map((c, k) => Math.round(c + (cb[k] - c) * t));
+    }
+    return RAMP[RAMP.length - 1][1];
+  }
+  function terrainColor(h) {
+    if (h <= 5) return [227, 238, 243];
+    const t = Math.min(h / 3500, 1);
+    return [Math.round(238 - 70 * t), Math.round(241 - 66 * t), Math.round(234 - 62 * t)];
+  }
+  const hhmm = h => String(h).padStart(2, "0") + ":00";
+  const minutes = s => { const [h, m] = s.split(":").map(Number); return h * 60 + (m || 0); };
+  const fmtDay = d => `${d.slice(6)}-${d.slice(4, 6)}-${d.slice(0, 4)}`;
+  const coord = (v, ns) => `${Math.abs(v).toLocaleString("es-CL", { minimumFractionDigits: 2 })}°${v < 0 ? ns[0] : ns[1]}`;
+
+  function setEngine(model) {
+    const el = $("engine"), p = model && model.predictor ? model.predictor : {};
+    el.classList.toggle("demo", state.demo || p.kind === "snapshot");
+    $("engine-txt").textContent = state.demo || p.kind === "snapshot"
+      ? "Modo demostración · puntajes precalculados"
+      : p.kind === "sagemaker" ? `Motor: Amazon SageMaker · ${p.where}` : "Motor: checkpoint local · listo para SageMaker";
+  }
+
+  // Ventana de filas centrada en los eventos del día (o en 37°S si no hay).
+  function windowRows(d) {
+    const lat = d.events.length ? d.events.reduce((a, e) => a + e.lat, 0) / d.events.length : -37;
+    let i0 = Math.round((d.lats[0] - lat) / 0.25) - Math.floor(ROWS / 2);
+    i0 = Math.max(0, Math.min(d.lats.length - ROWS, i0));
+    return Array.from({ length: ROWS }, (_, r) => i0 + r);
+  }
+
+  function draw() {
+    const d = state.data; if (!d) return;
+    const hour = Number($("hour").value), rule = $("rule-select").value;
+    const H = d.hours.find(x => x.hour === hour) || d.hours[d.hours.length - 1];
+    const nLon = d.lons.length, rows = windowRows(d);
+    $("hour-out").value = hhmm(H.hour);
+    $("rule-title").textContent = RULE_NAMES[rule];
+    [["map-model", k => {
+        const t = terrainColor(d.terrain[k]), v = H.score[k];
+        if (v < 0) return t;
+        const c = rampColor(v), a = Math.min(1, Math.max(0, (v - 8) / 30));
+        return t.map((q, n) => Math.round(q + (c[n] - q) * a));
+      }], ["map-rule", k => H[rule][k] ? [230, 159, 0] : terrainColor(d.terrain[k])]].forEach(([id, colorOf]) => {
+      const cv = $(id), ctx = cv.getContext("2d"), w = cv.width / nLon, h = cv.height / ROWS;
+      rows.forEach((i, r) => { for (let j = 0; j < nLon; j++) {
+        const c = colorOf(i * nLon + j); ctx.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
+        ctx.fillRect(Math.floor(j * w), Math.floor(r * h), Math.ceil(w) + 1, Math.ceil(h) + 1); } });
+      const xy = (lat, lon) => [((lon - d.lons[0]) / 0.25 + 0.5) * w, ((d.lats[rows[0]] - lat) / 0.25 + 0.5) * h];
+      const s = cv.width / 32;
+      d.events.forEach(e => {
+        const [x, y] = xy(e.lat, e.lon), done = !e.hour || minutes(e.hour) <= H.hour * 60 + 59;
+        ctx.beginPath(); ctx.moveTo(x, y - s); ctx.lineTo(x + s * 0.9, y + s * 0.7); ctx.lineTo(x - s * 0.9, y + s * 0.7); ctx.closePath();
+        ctx.lineWidth = Math.max(1.5, s * 0.22); ctx.strokeStyle = done ? "#FFFFFF" : SEVERE; ctx.stroke();
+        if (done) { ctx.fillStyle = SEVERE; ctx.fill(); }
+      });
+      if (state.sel) {
+        const r = rows.indexOf(state.sel.i);
+        if (r >= 0) { ctx.lineWidth = 3; ctx.strokeStyle = SEVERE; ctx.strokeRect(state.sel.j * w + 1.5, r * h + 1.5, w - 3, h - 3); }
+      }
+      cv.onclick = ev => {
+        const b = cv.getBoundingClientRect();
+        const j = Math.floor((ev.clientX - b.left) / b.width * nLon), r = Math.floor((ev.clientY - b.top) / b.height * ROWS);
+        if (j >= 0 && j < nLon && r >= 0 && r < ROWS) { state.sel = { i: rows[r], j }; draw(); }
+      };
+    });
+    readouts(d, H, rule);
+    explain(d, H, rule);
+    alerts(d, H);
+  }
+
+  function readouts(d, H, rule) {
+    const nLon = d.lons.length, valid = H.score.filter(v => v >= 0).sort((a, b) => a - b);
+    const near = d.events.map(e => { let best = -1, hit = 0;
+      d.lats.forEach((la, i) => { if (Math.abs(la - e.lat) > 0.5) return;
+        d.lons.forEach((lo, j) => { if (Math.abs(lo - e.lon) > 0.5) return;
+          const k = i * nLon + j; best = Math.max(best, H.score[k]); hit = hit || H[rule][k]; }); });
+      return { best, hit }; });
+    if (near.length && valid.length) {
+      const pct = near.map(n => valid.filter(v => v < n.best).length / valid.length).sort((a, b) => a - b);
+      const top = Math.max(1, Math.round((1 - pct[Math.floor(pct.length / 2)]) * 100));
+      $("r-pct").textContent = `top ${top} %`;
+      $("r-pct-txt").textContent = `En la mediana, las celdas junto a los ${d.events.length} eventos del día están en el ${top} % de mayor puntaje del dominio a las ${hhmm(H.hour)} UTC.`;
+    } else { $("r-pct").textContent = "—"; $("r-pct-txt").textContent = "Este día no tiene eventos con coordenadas en el catálogo."; }
+    const area = H[rule].reduce((a, b) => a + b, 0) / H[rule].length;
+    $("r-rule").textContent = `${(area * 100).toLocaleString("es-CL", { maximumFractionDigits: 1 })} %`;
+    $("r-rule-txt").textContent = `del dominio marcado por la regla a esta hora; toca ${near.filter(n => n.hit).length} de ${d.events.length} eventos.`;
+  }
+
+  function explain(d, H, rule) {
+    const tb = $("cell-table");
+    if (!state.sel) { tb.hidden = true; return; }
+    const { i, j } = state.sel, k = i * d.lons.length + j, v = H.score[k];
+    $("cell-score").textContent = v < 0 ? "sin datos" : `${v} / 100`;
+    $("cell-where").textContent = `${coord(d.lats[i], "SN")}, ${coord(d.lons[j], "WE")} · ${H[rule][k] ? "la regla se dispara" : "la regla no se dispara"} · ${d.terrain[k] > 5 ? `${d.terrain[k]} m s. n. m.` : "sobre el mar"}`;
+    const valid = H.score.filter(x => x >= 0);
+    const rank = v < 0 ? null : Math.max(1, Math.round(valid.filter(x => x > v).length / valid.length * 100));
+    const rowsHtml = Object.entries(d.feature_labels).map(([key, label]) => {
+      const x = H.features && H.features[key] ? H.features[key][k] : null;
+      return `<tr><td>${label}</td><td>${x == null ? "—" : x.toLocaleString("es-CL")}</td></tr>`;
+    }).join("");
+    tb.tBodies[0].innerHTML = rowsHtml + (rank ? `<tr><td>Lugar en el dominio</td><td>top ${rank} %</td></tr>` : "");
+    tb.hidden = false;
+  }
+
+  function alerts(d, H) {
+    const nLon = d.lons.length;
+    const top = H.score.map((v, k) => [v, k]).filter(([v]) => v >= 0).sort((a, b) => b[0] - a[0]).slice(0, 5);
+    const ul = $("alerts"); ul.innerHTML = "";
+    top.forEach(([v, k]) => {
+      const i = Math.floor(k / nLon), j = k % nLon, li = document.createElement("li"), b = document.createElement("button");
+      b.type = "button";
+      b.innerHTML = `<span>${coord(d.lats[i], "SN")}, ${coord(d.lons[j], "WE")}${d.terrain[k] > 5 ? "" : " · mar"}</span><b>${v}</b>`;
+      b.addEventListener("click", () => { state.sel = { i, j }; draw(); });
+      li.appendChild(b); ul.appendChild(li);
+    });
+  }
+
+  function selectDay(day) {
+    state.day = day; state.sel = null;
+    const p = cache[day] || (cache[day] = load(`api/day/${day}`, `assets/day_${day}.json`));
+    p.then(d => { if (state.day !== day) return; state.data = d;
+        const hrs = d.hours.map(h => h.hour); $("hour").min = Math.min(...hrs); $("hour").max = Math.max(...hrs);
+        draw(); })
+     .catch(err => { console.error(err); $("console-foot").textContent = `No se pudieron cargar los puntajes de ${fmtDay(day)}.`; });
+  }
+
+  // ---- Gráfico de evidencia ----
+  function drawChart() {
+    const svg = $("aiwp-chart"), NS = "http://www.w3.org/2000/svg";
+    const groups = [
+      { title: "Área de la regla A · 1,07 % del dominio", rows: [
+        { label: "Vórtice", cls: "bar-model", obs: 40, k: "10 de 25", nul: [15, 33], mean: 22 },
+        { label: "Regla A (cizalle, SRH y CAPE)", cls: "bar-rule", obs: 20, k: "5 de 25", nul: [11, 24], mean: 16 } ] },
+      { title: "Área de la regla B · 10,74 % del dominio", rows: [
+        { label: "Vórtice", cls: "bar-model", obs: 80, k: "20 de 25", nul: [52, 73], mean: 63 },
+        { label: "Regla B (cizalle y SRH)", cls: "bar-rule", obs: 32, k: "8 de 25", nul: [20, 41], mean: 30 } ] } ];
+    const x0 = 230, x1 = 690, sx = v => x0 + (x1 - x0) * v / 100;
+    const el = (tag, attrs, text) => { const e = document.createElementNS(NS, tag);
+      Object.entries(attrs).forEach(([a, v]) => e.setAttribute(a, v)); if (text) e.textContent = text; svg.appendChild(e); return e; };
+    [0, 25, 50, 75, 100].forEach(v => { el("line", { x1: sx(v), x2: sx(v), y1: 14, y2: 262, class: "grid" });
+      el("text", { x: sx(v), y: 284, "text-anchor": "middle", "font-size": 12 }, `${v} %`); });
+    let y = 26;
+    groups.forEach(g => {
+      el("text", { x: 0, y, "font-size": 12.5, class: "lbl" }, g.title); y += 18;
+      g.rows.forEach(r => {
+        el("text", { x: 0, y: y + 22, "font-size": 13 }, r.label);
+        el("rect", { x: sx(r.nul[0]), y: y + 4, width: sx(r.nul[1]) - sx(r.nul[0]), height: 28, class: "null", rx: 2 });
+        el("rect", { x: x0, y: y + 11, width: sx(r.obs) - x0, height: 14, class: r.cls, rx: 2 });
+        el("line", { x1: sx(r.mean), x2: sx(r.mean), y1: y + 2, y2: y + 34, class: "nulltick", "stroke-width": 2 });
+        const xt = sx(Math.max(r.obs, r.nul[1])) + 8;
+        el("text", { x: xt, y: y + 23, "font-size": 13, class: "val" }, `${r.obs} %`);
+        el("text", { x: xt + 44, y: y + 23, "font-size": 12 }, r.k);
+        y += 40;
+      });
+      y += 18;
+    });
+  }
+
+  drawChart();
+  $("hour").addEventListener("input", draw);
+  $("rule-select").addEventListener("change", draw);
+  $("day-select").addEventListener("change", e => selectDay(e.target.value));
+
+  load("api/days", "assets/days.json").then(({ days }) => {
+    const sel = $("day-select"); sel.innerHTML = "";
+    days.forEach(d => { const o = document.createElement("option"); o.value = d; o.textContent = fmtDay(d); sel.appendChild(o); });
+    const first = days.includes("20190530") ? "20190530" : days[0];
+    sel.value = first;
+    load("api/model", "assets/model.json").then(setEngine).catch(() => setEngine(null));
+    selectDay(first);
+  }).catch(err => { console.error(err); $("engine-txt").textContent = "No se pudo conectar con el motor"; });
+})();
+</script>
