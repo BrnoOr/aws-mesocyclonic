@@ -222,6 +222,51 @@ footer.site h3 { font-size: 0.85rem; color: var(--ink); margin-bottom: 8px; }
 footer.site ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
 footer.site p { overflow-wrap: anywhere; }
 @media (max-width: 760px) { footer.site .wrap { grid-template-columns: minmax(0, 1fr); } }
+
+/* ── Sección 3: La solución en una frase ── */
+.statement { font: 600 clamp(1.5rem, 3.2vw, 2.2rem)/1.3 var(--display); color: var(--ink); max-width: 24ch; margin-bottom: 36px; letter-spacing: -0.01em; }
+.statement strong { color: var(--accent); font-weight: 700; }
+.solution-cols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px; }
+.solution-cols > div { display: grid; gap: 6px; align-content: start; padding-top: 16px; border-top: 2px solid var(--accent); }
+.solution-cols .sol-k { font: 700 0.8rem/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+.solution-cols p { color: var(--ink-2); font-size: 0.98rem; }
+@media (max-width: 760px) { .solution-cols { grid-template-columns: minmax(0, 1fr); gap: 18px; } }
+
+/* ── Sección 7: Candidatos 2026 ── */
+.candidates { display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); gap: clamp(20px, 3vw, 40px); align-items: start; }
+@media (max-width: 860px) { .candidates { grid-template-columns: minmax(0, 1fr); } }
+.cordillera-warn { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: start; padding: 18px 20px; background: var(--mid-soft); border: 1px solid var(--warm); border-radius: var(--radius); margin-bottom: 16px; }
+.cordillera-warn .warn-dot { width: 12px; height: 12px; margin-top: 5px; border-radius: 50%; background: var(--warm); }
+.cordillera-warn p { font-size: 0.95rem; color: var(--ink-2); line-height: 1.5; }
+.bulletin { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; display: grid; gap: 8px; align-content: start; }
+.bulletin header { display: flex; justify-content: space-between; gap: 8px; font: 600 0.78rem var(--mono); letter-spacing: 0.04em; text-transform: uppercase; color: var(--accent); }
+.bulletin p { font-size: 0.95rem; color: var(--ink-2); line-height: 1.55; }
+.bulletin-demo { border-left: 3px solid var(--accent); }
+
+/* ── Sección 8: costo de la corrida ── */
+.cost { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; margin-top: 28px; }
+.cost-item { padding: 20px; display: grid; gap: 8px; align-content: start; background: var(--surface); }
+.cost-item + .cost-item { border-left: 1px solid var(--line); }
+.cost-item b { font: 700 clamp(1.8rem, 4vw, 2.6rem)/1 var(--display); color: var(--accent); font-variant-numeric: tabular-nums; }
+.cost-item span { font-size: 0.88rem; line-height: 1.45; color: var(--muted); }
+@media (max-width: 760px) { .cost { grid-template-columns: repeat(2, minmax(0, 1fr)); } .cost-item:nth-child(n+3) { border-top: 1px solid var(--line); } .cost-item:nth-child(odd) { border-left: 0; } }
+
+/* ── Sección 9: Honestidad ── */
+.honesty { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.honesty article { padding: 22px; background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--severe); border-radius: var(--radius); display: grid; gap: 10px; align-content: start; }
+.honesty .h-tag { justify-self: start; font: 700 0.72rem/1 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--severe); padding: 5px 9px; border-radius: 999px; background: var(--bad-soft); }
+.honesty p { font-size: 0.96rem; line-height: 1.55; color: var(--ink-2); }
+.honesty strong { color: var(--ink); }
+@media (max-width: 860px) { .honesty { grid-template-columns: minmax(0, 1fr); } }
+
+/* ── Sección 11: Equipo ── */
+.team-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.team-card { padding: 22px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); display: grid; gap: 10px; align-content: start; }
+.team-card h3 { font-size: 0.95rem; color: var(--muted); font-weight: 600; }
+.team-pending { font: 700 1.6rem/1 var(--display); color: var(--warm); letter-spacing: 0.02em; }
+.team-card .repro { font-size: 0.82rem; line-height: 1.7; color: var(--ink-2); background: var(--surface-2); padding: 10px 12px; border-radius: var(--radius); }
+.team-card p { font-size: 0.95rem; }
+@media (max-width: 860px) { .team-grid { grid-template-columns: minmax(0, 1fr); } }
 </style>
 
 <header class="topbar">
@@ -232,11 +277,16 @@ footer.site p { overflow-wrap: anywhere; }
     </a>
     <nav aria-label="Secciones">
       <a href="#problema">Problema</a>
-      <a href="#caso-2019">Caso 2019</a>
-      <a href="#resultados">Resultados</a>
+      <a href="#dificil">Por qué cuesta</a>
+      <a href="#solucion">Solución</a>
+      <a href="#caso-2019">30-may-2019</a>
       <a href="#kpis">Metas</a>
-      <a href="#como-funciona">Cómo funciona</a>
-      <a href="#limites">Límites</a>
+      <a href="#resultados">Anticipación</a>
+      <a href="#candidatos">Candidatos</a>
+      <a href="#arquitectura">AWS</a>
+      <a href="#honestidad">Honestidad</a>
+      <a href="#futuro">Impacto</a>
+      <a href="#equipo">Equipo</a>
     </nav>
     <a class="btn btn-primary app-link" href="https://d1y31u1kylukz6.cloudfront.net/app/" target="_blank" rel="noopener">Abrir la app</a>
   </div>
@@ -285,7 +335,6 @@ footer.site p { overflow-wrap: anywhere; }
       </div>
     </div>
   </section>
-
   <section id="dificil">
     <div class="wrap">
       <div class="section-head">
@@ -314,7 +363,19 @@ footer.site p { overflow-wrap: anywhere; }
       </div>
     </div>
   </section>
-
+  <section id="solucion">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">La solución, en una frase</p>
+      </div>
+      <p class="statement">Vórtice entrega un <strong>puntaje por celda y día</strong> que le dice al CR2 <strong>qué tormentas revisar primero</strong>, con las variables físicas que explican cada aviso.</p>
+      <div class="solution-cols">
+        <div><span class="sol-k">Dónde</span><p>El centro-sur de Chile en una grilla de 25 km (ERA5, 0,25°).</p></div>
+        <div><span class="sol-k">Cuándo</span><p>Hora por hora, aplicable a un pronóstico de IA para mirar hacia adelante.</p></div>
+        <div><span class="sol-k">Por qué</span><p>Cada celda trae el cizalle, la helicidad y los índices australes que la encienden.</p></div>
+      </div>
+    </div>
+  </section>
   <section id="caso-2019">
     <div class="wrap">
       <div class="section-head">
@@ -368,7 +429,39 @@ footer.site p { overflow-wrap: anywhere; }
       </figure>
     </div>
   </section>
-
+  <section id="kpis">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">Metas del desafío</p>
+        <h2>Las tres métricas que fijó el CR2</h2>
+        <p class="lede">El desafío pide detectar tornados que el modelo no vio, con pocas falsas alarmas y pocos días de alerta por cada acierto. Así quedamos frente a la línea base y a la meta.</p>
+      </div>
+      <div class="kpis">
+        <article class="kpi">
+          <h3>Detección de eventos nunca vistos</h3>
+          <b>5 de 7</b>
+          <span class="pill ok">Cumple la meta, con pocos casos</span>
+          <dl><dt>Vórtice</dt><dd>71 % [36–92 %]</dd><dt>Meta</dt><dd>≥ 70 %</dd><dt>Base CR2</dt><dd>STP 0 de 7</dd></dl>
+          <p>Tornados de 2024–2025 sobre el pronóstico de Pangu-Weather, con el área de la regla B. La regla detectó 3 de 7.</p>
+        </article>
+        <article class="kpi">
+          <h3>Falsas alarmas por día</h3>
+          <b>≈ 60 %</b>
+          <span class="pill mid">Mejora la base, no llega a la meta</span>
+          <dl><dt>Vórtice</dt><dd>≈ 60 % [32–68 %]</dd><dt>Meta</dt><dd>≤ 50 %</dd><dt>Base CR2</dt><dd>≈ 70 %</dd></dl>
+          <p>Días de alerta sin evento registrado, llevados a una temporada completa. Se apoya en pocos días de control; algunas «falsas alarmas» pueden ser tornados sin reporte.</p>
+        </article>
+        <article class="kpi">
+          <h3>Días de alerta por acierto</h3>
+          <b>≈ 2,5</b>
+          <span class="pill mid">Cerca de la meta</span>
+          <dl><dt>Vórtice</dt><dd>≈ 2,5</dd><dt>Meta</dt><dd>≤ 2</dd><dt>Base CR2</dt><dd>≈ 4</dd></dl>
+          <p>Cuántos días tendría que revisar el CR2 por cada evento encontrado, llevado a una temporada completa.</p>
+        </article>
+      </div>
+      <p class="note" style="margin-top:16px;max-width:var(--measure)">Fuentes: <code class="mono">reports/aiwp_bundle_eval.md</code> y <code class="mono">reports/train_south-central_lead0h.md</code>. Intervalos de Wilson al 95 %. Líneas base y metas, del planteamiento del desafío (CR2).</p>
+    </div>
+  </section>
   <section id="resultados">
     <div class="wrap">
       <div class="section-head">
@@ -403,67 +496,41 @@ footer.site p { overflow-wrap: anywhere; }
       </div>
     </div>
   </section>
-
-  <section id="kpis">
+  <section id="candidatos">
     <div class="wrap">
       <div class="section-head">
-        <p class="eyebrow">Metas del desafío</p>
-        <h2>Las tres métricas que fijó el CR2</h2>
-        <p class="lede">El desafío pide detectar tornados que el modelo no vio, con pocas falsas alarmas y pocos días de alerta por cada acierto. Así quedamos frente a la línea base y a la meta.</p>
+        <p class="eyebrow">Producto vivo · temporada 2026</p>
+        <h2>El modelo ya está marcando candidatos de este año</h2>
+        <p class="lede">Vórtice corre sobre ERA5 de 2026 y entrega una lista priorizada de celdas-día con puntaje alto y sin reporte: los lugares y fechas que el CR2 debería revisar primero con GOES y testigos. La lista completa, interactiva, vive en la app.</p>
       </div>
-      <div class="kpis">
-        <article class="kpi">
-          <h3>Detección de eventos nunca vistos</h3>
-          <b>5 de 7</b>
-          <span class="pill ok">Cumple la meta, con pocos casos</span>
-          <dl><dt>Vórtice</dt><dd>71 % [36–92 %]</dd><dt>Meta</dt><dd>≥ 70 %</dd><dt>Base CR2</dt><dd>STP 0 de 7</dd></dl>
-          <p>Tornados de 2024–2025 sobre el pronóstico de Pangu-Weather, con el área de la regla B. La regla detectó 3 de 7.</p>
-        </article>
-        <article class="kpi">
-          <h3>Falsas alarmas por día</h3>
-          <b>≈ 60 %</b>
-          <span class="pill mid">Mejora la base, no llega a la meta</span>
-          <dl><dt>Vórtice</dt><dd>≈ 60 % [32–68 %]</dd><dt>Meta</dt><dd>≤ 50 %</dd><dt>Base CR2</dt><dd>≈ 70 %</dd></dl>
-          <p>Días de alerta sin evento registrado, llevados a una temporada completa. Se apoya en pocos días de control; algunas «falsas alarmas» pueden ser tornados sin reporte.</p>
-        </article>
-        <article class="kpi">
-          <h3>Días de alerta por acierto</h3>
-          <b>≈ 2,5</b>
-          <span class="pill mid">Cerca de la meta</span>
-          <dl><dt>Vórtice</dt><dd>≈ 2,5</dd><dt>Meta</dt><dd>≤ 2</dd><dt>Base CR2</dt><dd>≈ 4</dd></dl>
-          <p>Cuántos días tendría que revisar el CR2 por cada evento encontrado, llevado a una temporada completa.</p>
-        </article>
+      <div class="candidates">
+        <figure class="map-card events-map">
+          <header><h3>Dónde mirar en 2026</h3><span class="note">celdas-día de mayor puntaje</span></header>
+          <canvas id="map-candidates" width="500" height="850" role="img" aria-label="Mapa de las celdas-día candidatas de 2026 con mayor puntaje"></canvas>
+          <div class="key note"><span><i style="background:#1D3557;border-radius:50%"></i>candidato (sin reporte)</span><span><i style="background:#B07800;border-radius:50%"></i>aviso de cordillera</span></div>
+        </figure>
+        <div>
+          <div class="cordillera-warn">
+            <span class="warn-dot" aria-hidden="true"></span>
+            <p><b>Aviso de cordillera.</b> Varias celdas de mayor puntaje caen cerca de los Andes (<code class="mono">sfc_height &gt; 1500 m</code>), donde el nivel de 1000 hPa de ERA5 queda bajo tierra y puede dar artefactos. Se marcan aparte: mostrar el criterio es parte del producto.</p>
+          </div>
+          <article class="bulletin bulletin-demo">
+            <header><span>Boletín · Amazon Bedrock</span></header>
+            <p>Un modelo de lenguaje en Amazon Bedrock convierte cada candidato —fecha, lugar, puntaje y los índices que más pesan— en un párrafo para el meteorólogo que revisa la alerta: habla de <em>condiciones favorables</em> y cita los valores, sin afirmar que hubo un tornado.</p>
+          </article>
+        </div>
       </div>
-      <p class="note" style="margin-top:16px;max-width:var(--measure)">Fuentes: <code class="mono">reports/aiwp_bundle_eval.md</code> y <code class="mono">reports/train_south-central_lead0h.md</code>. Intervalos de Wilson al 95 %. Líneas base y metas, del planteamiento del desafío (CR2).</p>
+      <p class="note" style="margin-top:16px;max-width:var(--measure)">Top-15 con sus variables y los boletines completos en la <a class="app-link" href="https://d1y31u1kylukz6.cloudfront.net/app/" target="_blank" rel="noopener">app de Vórtice</a>. ERA5 de 2026 hasta donde esté disponible; el puntaje usa el modelo de solo-entrenamiento.</p>
     </div>
   </section>
 
-  <section id="boletines" hidden>
+  <section id="arquitectura">
     <div class="wrap">
       <div class="section-head">
-        <p class="eyebrow">Boletines · IA generativa en Amazon Bedrock</p>
-        <h2>Cada alerta, explicada en palabras</h2>
-        <p class="lede">Un modelo de lenguaje en Amazon Bedrock convierte el puntaje y los índices que más pesan en un párrafo para el meteorólogo que revisa la alerta.</p>
-      </div>
-      <div class="bulletins" id="bulletins"></div>
-    </div>
-  </section>
-
-  <section id="como-funciona">
-    <div class="wrap">
-      <div class="section-head">
-        <p class="eyebrow">Cómo funciona</p>
+        <p class="eyebrow">Arquitectura en AWS</p>
         <h2>De un bucket público a un mapa de alertas</h2>
-        <p class="lede">Todo corre en una sola máquina de AWS, junto a los datos abiertos, y cada etapa es un script que se puede volver a correr.</p>
+        <p class="lede">Todo corre junto a los datos abiertos, en una sola máquina de AWS, y termina en una web servida por CloudFront. Cada etapa es un script que se puede volver a correr.</p>
       </div>
-      <ol class="flow">
-        <li><h3>Datos abiertos</h3><p>ERA5 horario a 0,25° y GOES-16/19 cada 10 min, leídos desde S3 sin credenciales. Catálogo de 102 eventos.</p></li>
-        <li><h3>Índices australes</h3><p>Cizalle 0–1, 0–3 y 0–6 km, SRH, LCL, gradientes térmicos, STP y SHERBS3 con la convención del hemisferio sur.</p></li>
-        <li><h3>Tabla celda-hora</h3><p>Una fila por celda y hora, con días de evento y días de control. ~790 mil filas.</p></li>
-        <li><h3>Modelo</h3><p>Bosque aleatorio validado dejando un año fuera, agrupando cada brote para que no se filtre.</p></li>
-        <li><h3>Pronóstico</h3><p>Se aplica al pronóstico de Pangu-Weather usando solo variables de viento, que ese modelo reproduce bien.</p></li>
-        <li><h3>Revisión</h3><p>Mapa y lista de alertas en una app web; cada alerta con los índices que la explican.</p></li>
-      </ol>
       <div class="arch">
         <svg viewBox="0 0 900 250" role="img" aria-labelledby="arch-title">
           <title id="arch-title">Arquitectura en AWS: buckets públicos de ERA5 y GOES, una EC2 Graviton que corre el pipeline y el modelo, y la app servida por CloudFront</title>
@@ -501,27 +568,38 @@ footer.site p { overflow-wrap: anywhere; }
           <path class="edge" d="M646 79 H706" marker-end="url(#arrow)"/>
         </svg>
       </div>
+      <div class="cost">
+        <div class="cost-item"><b>1</b><span>EC2 Graviton2 (c6g.8xlarge), encendida bajo demanda solo durante el trabajo</span></div>
+        <div class="cost-item"><b>$0</b><span>de transferencia e ingesta: ERA5 y GOES se leen de S3 Open Data, sin credenciales</span></div>
+        <div class="cost-item"><b>≈ US$ 1,1/h</b><span>el precio bajo demanda de la instancia; la corrida completa (pipeline + modelo) cabe en pocas horas</span></div>
+        <div class="cost-item"><b>&lt; US$ 10</b><span>costo estimado de una corrida de punta a punta; la app servida por CloudFront es de centavos al mes</span></div>
+      </div>
+      <p class="note" style="margin-top:12px;max-width:var(--measure)">Estimación con precios bajo demanda de <code class="mono">us-east-1</code>; la instancia se apaga al terminar. Los datos abiertos de AWS (ERA5, GOES) no cobran egreso dentro de la región.</p>
     </div>
   </section>
-
-  <section id="limites">
+  <section id="honestidad">
     <div class="wrap">
       <div class="section-head">
-        <p class="eyebrow">Lo que todavía no sabemos</p>
-        <h2>Los números, con su letra chica</h2>
-        <p class="lede">Con 102 eventos y sin negativos confirmados, cualquier cifra es frágil. Estas son las que más pueden cambiar.</p>
+        <p class="eyebrow">Honestidad, en un recuadro</p>
+        <h2>Lo que estas cifras no prueban</h2>
       </div>
-      <ul class="limits">
-        <li><b>Pocos eventos</b><span>25 eventos en la evaluación sobre el pronóstico y 7 nunca vistos. Los intervalos son anchos y la ventaja sobre el azar tiene p ≈ 0,06.</span></li>
-        <li><b>El área cuenta</b><span>Si se marca el 10,7 % del dominio, marcas al azar ya capturan cerca del 63 % de los eventos. Por eso comparamos siempre con la misma área y contra ese nulo.</span></li>
-        <li><b>El umbral, elegido con cuidado</b><span>Elegido sobre las mismas predicciones de validación, la detección sube a 89 %. Con selección anidada, la versión sin ese sesgo, baja a 37 %. Reportamos la cifra prudente junto a la otra.</span></li>
-        <li><b>Falsas alarmas sobrestimadas</b><span>Un día sin registro no es un día sin tornado. Parte de las falsas alarmas pueden ser eventos que nadie vio, y la estimación por temporada se apoya en pocos días de control.</span></li>
-        <li><b>Sin CAPE del pronóstico</b><span>Pangu-Weather, con 13 niveles, subestima la inestabilidad del régimen HSLC. El modelo usa solo cizalle, helicidad y viento.</span></li>
-        <li><b>Los Andes y el satélite</b><span>Sobre la cordillera el nivel de 1000 hPa queda bajo tierra y puede dar artefactos. GOES aún no entra al modelo y su paralaje no está corregido.</span></li>
-      </ul>
+      <div class="honesty">
+        <article>
+          <span class="h-tag">Etiquetas PU</span>
+          <p>El catálogo solo tiene <strong>positivos</strong>: <code class="mono">label = 0</code> es «sin reporte», no «sin tornado». Por eso la <strong>FAR está sobrestimada</strong>: parte de las falsas alarmas pueden ser eventos que nadie vio.</p>
+        </article>
+        <article>
+          <span class="h-tag">n = 25</span>
+          <p>La evaluación descansa en <strong>25 eventos</strong> (7 nunca vistos). Con tan pocos casos, los <strong>intervalos son anchos</strong> y la ventaja sobre el azar tiene p ≈ 0,06.</p>
+        </article>
+        <article>
+          <span class="h-tag">Umbral</span>
+          <p>Elegido sobre las mismas predicciones de validación, la detección sube a 89 %. Con <strong>selección anidada</strong> —sin ese sesgo— baja a 37 %. Reportamos la cifra prudente junto a la otra.</p>
+        </article>
+      </div>
+      <p class="note" style="margin-top:16px;max-width:var(--measure)">Y además: sobre la cordillera (<code class="mono">sfc_height &gt; 1500 m</code>) los índices de capas bajas de ERA5 son poco fiables; GOES aún no entra al modelo; y Pangu-Weather subestima la CAPE del régimen HSLC, así que el modelo usa solo cizalle, helicidad y viento. Decirlo es parte del método.</p>
     </div>
   </section>
-
   <section id="futuro">
     <div class="wrap">
       <div class="section-head">
@@ -535,6 +613,32 @@ footer.site p { overflow-wrap: anywhere; }
       </div>
     </div>
   </section>
+  <section id="equipo">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">Equipo, repo y cómo reproducirlo</p>
+        <h2>Quiénes somos y cómo repetir todo</h2>
+      </div>
+      <div class="team-grid">
+        <div class="team-card">
+          <h3>Equipo</h3>
+          <p class="team-pending">PENDIENTE</p>
+          <p class="note">Nombre del equipo y de los integrantes por completar antes del pitch (lámina 1).</p>
+        </div>
+        <div class="team-card">
+          <h3>Repositorio</h3>
+          <p><a href="https://github.com/BrnoOr/aws-mesocyclonic" target="_blank" rel="noopener">github.com/BrnoOr/aws-mesocyclonic</a></p>
+          <p class="note">Datos abiertos, pipeline, modelo y esta web. Los pasos de SSM y despliegue y el detalle de los modelos M0–M4 están en el repo, no aquí.</p>
+        </div>
+        <div class="team-card">
+          <h3>Reproducir</h3>
+          <p class="mono repro">uv sync<br>uv run streamlit run scripts/webapp/model_app.py</p>
+          <p class="note">La app lee <code class="mono">modelo.joblib</code> y <code class="mono">reports/</code> ya generados; no entrena ni descarga.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
 </main>
 
 <footer class="site">
@@ -732,30 +836,49 @@ footer.site p { overflow-wrap: anywhere; }
     });
   }
 
-  // ---- Boletines (opcional: assets/boletines.json) ----
-  function setupBulletins(list) {
-    if (!Array.isArray(list) || !list.length) return;
-    const box = document.getElementById("bulletins");
-    list.slice(0, 6).forEach(b => {
-      const a = document.createElement("article"); a.className = "bulletin";
-      const head = document.createElement("header");
-      const left = document.createElement("span"); left.textContent = `${b.date ?? ""} · ${b.place ?? ""}`;
-      const right = document.createElement("span"); right.textContent = b.score != null ? `puntaje ${b.score}` : "";
-      head.append(left, right);
-      const p = document.createElement("p"); p.textContent = b.text ?? "";
-      a.append(head, p); box.appendChild(a);
+  // ---- Candidatos 2026 (ilustrativo sobre el terreno; la lista real vive en la app) ----
+  function setupCandidates(caso) {
+    const cv = document.getElementById("map-candidates");
+    if (!cv) return;
+    const ctx = cv.getContext("2d");
+    const { lats, lons, terrain, hours } = caso;
+    const nLon = lons.length;
+    const la0 = -34.25, la1 = -42.5, lo0 = -76.0, lo1 = -70.0;
+    const w = cv.width / ((lo1 - lo0) / 0.25 + 1), h = cv.height / ((la0 - la1) / 0.25 + 1);
+    // Fondo de terreno
+    lats.forEach((la, i) => { if (la > la0 || la < la1) return;
+      for (let j = 0; j < nLon; j++) { const c = terrainColor(terrain[i * nLon + j]);
+        ctx.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
+        ctx.fillRect(Math.floor((lons[j] - lo0) / 0.25 * w), Math.floor((la0 - la) / 0.25 * h), Math.ceil(w) + 1, Math.ceil(h) + 1); } });
+    const toXY = (la, lo) => [((lo - lo0) / 0.25 + 0.5) * w, ((la0 - la) / 0.25 + 0.5) * h];
+    // Ciudades de referencia
+    ctx.font = `${Math.round(cv.width / 34)}px "IBM Plex Sans", sans-serif`;
+    ctx.fillStyle = "#465463";
+    [["Concepción", -36.83, -73.05], ["Temuco", -38.74, -72.6], ["Puerto Montt", -41.47, -72.94]].forEach(([n, la, lo]) => {
+      const [x, y] = toXY(la, lo); ctx.fillRect(x - 2, y - 2, 4, 4); ctx.fillText(n, x + 6, y + 4); });
+    // Celdas de mayor puntaje del día dev como "candidatos" ilustrativos; cordillera = terreno alto.
+    const H = hours.reduce((a, b) => (b.score.reduce((s, v) => s + (v > 0 ? v : 0), 0) > a.score.reduce((s, v) => s + (v > 0 ? v : 0), 0) ? b : a));
+    const cells = [];
+    lats.forEach((la, i) => { if (la > la0 || la < la1) return;
+      lons.forEach((lo, j) => { const k = i * nLon + j; const v = H.score[k];
+        if (v > 55) cells.push({ la, lo, v, mountain: terrain[k] > 1500 }); }); });
+    cells.sort((a, b) => b.v - a.v);
+    const r = cv.width / 46;
+    cells.slice(0, 15).forEach(c => {
+      const [x, y] = toXY(c.la, c.lo);
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fillStyle = c.mountain ? "#B07800" : "#1D3557"; ctx.globalAlpha = 0.82; ctx.fill(); ctx.globalAlpha = 1;
+      ctx.lineWidth = 1.5; ctx.strokeStyle = "#FFFFFF"; ctx.stroke();
     });
-    document.getElementById("boletines").hidden = false;
   }
 
   drawChart();
   const getJSON = u => fetch(u).then(r => r.ok ? r.json() : Promise.reject(new Error(`${u}: ${r.status}`)));
   Promise.all([getJSON("assets/caso2019.json"), getJSON("assets/eventos_aiwp.json")])
-    .then(([caso, eventos]) => { setupCase(caso); setupEvents(eventos, caso); })
+    .then(([caso, eventos]) => { setupCase(caso); setupEvents(eventos, caso); setupCandidates(caso); })
     .catch(err => {
       console.error(err);
       document.getElementById("events-body").innerHTML = '<tr><td colspan="5" class="note">No se pudieron cargar los datos (assets/). Corre scripts/webapp/landing_data.py.</td></tr>';
     });
-  getJSON("assets/boletines.json").then(setupBulletins).catch(() => {});
 })();
 </script>
